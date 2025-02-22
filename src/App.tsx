@@ -15,8 +15,10 @@ function App() {
         </div>
       }
     >
-      <Home />
-      {tempoRoutes}
+      <div className="relative">
+        <Home />
+        {tempoRoutes}
+      </div>
     </Suspense>
   );
 }
