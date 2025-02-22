@@ -26,15 +26,19 @@ export interface Database {
           name: string;
           scheduled_date?: string | null;
           status?: "draft" | "scheduled" | "sent";
+          signature?: string | null;
+          response_size?: "small" | "medium" | "large" | null;
+          campaign_type?: string | null;
         };
         Update: {
           id?: string;
           created_at?: string;
           name?: string;
-          company_name?: string;
-          company_details?: string;
           scheduled_date?: string | null;
           status?: "draft" | "scheduled" | "sent";
+          signature?: string | null;
+          response_size?: "small" | "medium" | "large" | null;
+          campaign_type?: string | null;
         };
       };
     };
