@@ -16,6 +16,10 @@ interface ResponsePanelProps {
   responses?: CSVData[];
   onApprove?: (id: string) => void;
   onEdit?: (id: string, content: string) => void;
+  companyName?: string;
+  companyDetails?: string;
+  signature?: string;
+  responseSize?: "small" | "medium" | "large";
 }
 
 interface AIResponse {
@@ -32,10 +36,16 @@ const generateResponseForIndex = async (
     React.SetStateAction<Record<string, AIResponse>>
   >,
   toast: any,
+  companyName?: string,
+  companyDetails?: string,
 ) => {
   setLoading((prev) => ({ ...prev, [index]: true }));
   try {
-    const aiResponse = await generateAIResponse(response);
+    const aiResponse = await generateAIResponse(
+      response,
+      companyName,
+      companyDetails,
+    );
     setAiResponses((prev) => ({
       ...prev,
       [index]: {
@@ -60,6 +70,10 @@ const ResponsePanel = ({
   responses = [],
   onApprove = () => {},
   onEdit = () => {},
+  companyName = "",
+  companyDetails = "",
+  signature = "",
+  responseSize = "medium",
 }: ResponsePanelProps) => {
   const [editMode, setEditMode] = useState<Record<string, boolean>>({});
   const [editContent, setEditContent] = useState<Record<string, string>>({});
@@ -81,6 +95,10 @@ const ResponsePanel = ({
             setLoading,
             setAiResponses,
             toast,
+            companyName,
+            companyDetails,
+            signature,
+            responseSize,
           );
           // Add a small delay between requests
           await new Promise((resolve) => setTimeout(resolve, 1000));

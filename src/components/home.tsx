@@ -9,7 +9,7 @@ interface HomeProps {
   defaultTab?: string;
 }
 
-const Home = ({ defaultTab = "upload" }: HomeProps) => {
+const Home = ({ defaultTab = "campaigns" }: HomeProps) => {
   const [activeTab, setActiveTab] = React.useState(defaultTab);
   const [isSidebarVisible, setSidebarVisible] = React.useState(true);
 

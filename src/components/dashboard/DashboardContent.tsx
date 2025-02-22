@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
+import { Campaign } from "@/lib/supabase/campaigns";
 import CSVUploader from "../upload/CSVUploader";
 import ResponsePanel from "../responses/ResponsePanel.tsx";
 import CampaignManager from "../email/CampaignManager";
@@ -17,10 +18,13 @@ interface DashboardContentProps {
 }
 
 const DashboardContent = ({
-  activeTab = "upload",
+  activeTab = "campaigns",
   onTabChange = () => {},
 }: DashboardContentProps) => {
   const [responses, setResponses] = useState<CSVData[]>([]);
+  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
+    null,
+  );
   const [analyticsData, setAnalyticsData] = useState({
     responseData: [
       {
@@ -65,13 +69,28 @@ const DashboardContent = ({
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2">
             <TabsTrigger
               value="campaigns"
-              className="bg-[#0F172A] text-white hover:text-white hover:bg-[#0F172A]/90"
+              className="bg-[#0F172A] text-white hover:text-white hover:bg-[#0F172A]/90 data-[state=active]:bg-[#0F172A] data-[state=active]:text-white"
             >
               Campaigns
             </TabsTrigger>
-            <TabsTrigger value="upload">CSV Upload</TabsTrigger>
-            <TabsTrigger value="responses">Responses</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
+            <TabsTrigger
+              value="upload"
+              className="data-[state=active]:bg-accent"
+            >
+              CSV Upload
+            </TabsTrigger>
+            <TabsTrigger
+              value="responses"
+              className="data-[state=active]:bg-accent"
+            >
+              Responses
+            </TabsTrigger>
+            <TabsTrigger
+              value="analytics"
+              className="data-[state=active]:bg-accent"
+            >
+              Analytics
+            </TabsTrigger>
           </TabsList>
 
           <div className="mt-6">
@@ -80,11 +99,17 @@ const DashboardContent = ({
             </TabsContent>
 
             <TabsContent value="responses" className="m-0">
-              <ResponsePanel responses={responses} />
+              <ResponsePanel
+                responses={responses}
+                companyName={selectedCampaign?.company_name}
+                companyDetails={selectedCampaign?.company_details}
+                signature={selectedCampaign?.signature}
+                responseSize={selectedCampaign?.response_size}
+              />
             </TabsContent>
 
             <TabsContent value="campaigns" className="m-0">
-              <CampaignManager />
+              <CampaignManager onCampaignSelect={setSelectedCampaign} />
             </TabsContent>
 
             <TabsContent value="analytics" className="m-0">
