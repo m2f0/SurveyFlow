@@ -109,7 +109,14 @@ const DashboardContent = ({
             </TabsContent>
 
             <TabsContent value="campaigns" className="m-0">
-              <CampaignManager onCampaignSelect={setSelectedCampaign} />
+              <CampaignManager
+                onCampaignSelect={(campaign) => {
+                  setSelectedCampaign(campaign);
+                  if (campaign) {
+                    setResponses([]); // Clear responses when switching campaigns
+                  }
+                }}
+              />
             </TabsContent>
 
             <TabsContent value="analytics" className="m-0">
