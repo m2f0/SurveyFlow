@@ -1,252 +1,406 @@
-import React, { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeftRight, Edit2, Save, ThumbsUp, Loader2 } from "lucide-react";
-import { generateAIResponse } from "@/lib/openai";
-import { useToast } from "@/components/ui/use-toast";
+import React, { useState } from "react";
+import { Card } from "../ui/card";
+import { Button } from "../ui/button";
+import { Input } from "../ui/input";
+import { Textarea } from "../ui/textarea";
+import { Save, Plus, Trash2, Settings, Edit } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Label } from "../ui/label";
+import { Checkbox } from "../ui/checkbox";
+import { cn } from "@/lib/utils";
 
-interface CSVData {
-  [key: string]: string;
-}
+import {
+  Campaign,
+  createCampaign,
+  updateCampaign,
+  deleteCampaign,
+  getCampaigns,
+} from "@/lib/supabase/campaigns";
 
-interface ResponsePanelProps {
-  responses?: CSVData[];
-  onApprove?: (id: string) => void;
-  onEdit?: (id: string, content: string) => void;
-  companyName?: string;
-  companyDetails?: string;
-  signature?: string;
-  responseSize?: "small" | "medium" | "large";
-  campaignType?: string;
-}
-
-interface AIResponse {
-  id: string;
-  content: string;
-  status: "pending" | "generated" | "approved";
-}
-
-const generateResponseForIndex = async (
-  index: number,
-  response: CSVData,
-  setLoading: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
-  setAiResponses: React.Dispatch<
-    React.SetStateAction<Record<string, AIResponse>>
-  >,
-  toast: any,
-  companyName?: string,
-  companyDetails?: string,
-  signature?: string,
-  responseSize?: "small" | "medium" | "large",
-) => {
-  setLoading((prev) => ({ ...prev, [index]: true }));
-  try {
-    const aiResponse = await generateAIResponse(
-      response,
-      companyName,
-      companyDetails,
-      signature,
-      responseSize,
-    );
-    setAiResponses((prev) => ({
-      ...prev,
-      [index]: {
-        id: String(index),
-        content: aiResponse,
-        status: "generated",
-      },
-    }));
-  } catch (error) {
-    console.error("Error generating response:", error);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: `Failed to generate AI response for item ${index + 1}`,
-    });
-  } finally {
-    setLoading((prev) => ({ ...prev, [index]: false }));
-  }
+type CampaignWithoutDates = Omit<Campaign, "created_at" | "scheduled_date"> & {
+  scheduled_date?: string | null;
 };
 
-const ResponsePanel = ({
-  responses = [],
-  onApprove = () => {},
-  onEdit = () => {},
-  companyName = "",
-  companyDetails = "",
-  signature = "",
-  responseSize = "medium",
-  campaignType = "general",
-}: ResponsePanelProps) => {
-  const [editMode, setEditMode] = useState<Record<string, boolean>>({});
-  const [editContent, setEditContent] = useState<Record<string, string>>({});
-  const [aiResponses, setAiResponses] = useState<Record<string, AIResponse>>(
-    {},
-  );
-  const [loading, setLoading] = useState<Record<string, boolean>>({});
-  const { toast } = useToast();
+interface CampaignManagerProps {
+  onCampaignSelect?: (campaign: Campaign | null) => void;
+}
 
-  // Effect to generate AI responses automatically
-  useEffect(() => {
-    const generateResponses = async () => {
-      // Generate responses one by one with a small delay to avoid rate limiting
-      for (let i = 0; i < responses.length; i++) {
-        if (!aiResponses[i]) {
-          await generateResponseForIndex(
-            i,
-            responses[i],
-            setLoading,
-            setAiResponses,
-            toast,
-            companyName,
-            companyDetails,
-            signature,
-            responseSize,
-            campaignType,
-          );
-          // Add a small delay between requests
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
+const defaultCampaigns: CampaignWithoutDates[] = [];
+
+const CampaignManager: React.FC<CampaignManagerProps> = ({
+  onCampaignSelect = () => {},
+}) => {
+  const [campaigns, setCampaigns] =
+    React.useState<CampaignWithoutDates[]>(defaultCampaigns);
+  const [selectedCampaign, setSelectedCampaign] =
+    useState<CampaignWithoutDates | null>(null);
+
+  const [editMode, setEditMode] = useState(false);
+  const [newCampaign, setNewCampaign] = useState<CampaignWithoutDates>({
+    id: "",
+    name: "",
+    status: "draft",
+    signature: "",
+    response_size: "medium" as const,
+    campaign_type: "",
+  });
+
+  React.useEffect(() => {
+    const loadCampaigns = async () => {
+      try {
+        const data = await getCampaigns();
+        setCampaigns(data);
+      } catch (error) {
+        console.error("Error loading campaigns:", error);
       }
     };
 
-    if (responses.length > 0) {
-      generateResponses();
-    }
-  }, [responses.length, toast]);
+    loadCampaigns();
+  }, []);
 
-  const handleEditStart = (id: string, content: string) => {
-    setEditMode((prev) => ({ ...prev, [id]: true }));
-    setEditContent((prev) => ({ ...prev, [id]: content }));
+  const handleNewCampaign = () => {
+    setEditMode(true);
+    setSelectedCampaign(null);
+    onCampaignSelect(null);
+    setNewCampaign({
+      id: "",
+      name: "",
+      status: "draft",
+      signature: "",
+      response_size: "medium",
+      campaign_type: "",
+    });
   };
 
-  const handleEditSave = (id: string) => {
-    onEdit(id, editContent[id]);
-    setEditMode((prev) => ({ ...prev, [id]: false }));
+  const handleEditCampaign = (campaign: CampaignWithoutDates) => {
+    setEditMode(true);
+    setNewCampaign({
+      ...campaign,
+      signature: campaign.signature || "",
+      response_size: campaign.response_size || "medium",
+      campaign_type: campaign.campaign_type || "",
+    });
+  };
+
+  const handleSaveCampaign = async () => {
+    try {
+      let campaign;
+      if (newCampaign.id) {
+        // Update existing campaign
+        campaign = await updateCampaign(newCampaign.id, {
+          name: newCampaign.name,
+          signature: newCampaign.signature,
+          response_size: newCampaign.response_size,
+          campaign_type: newCampaign.campaign_type,
+        });
+        setCampaigns((prev) =>
+          prev.map((c) => (c.id === campaign.id ? campaign : c)),
+        );
+      } else {
+        // Create new campaign
+        campaign = await createCampaign({
+          name: newCampaign.name,
+          status: "draft",
+          signature: newCampaign.signature,
+          response_size: newCampaign.response_size,
+          campaign_type: newCampaign.campaign_type,
+        });
+        setCampaigns((prev) => [campaign, ...prev]);
+      }
+
+      setEditMode(false);
+      setNewCampaign({
+        id: "",
+        name: "",
+        status: "draft",
+        signature: "",
+        response_size: "medium",
+        campaign_type: "",
+      });
+      setSelectedCampaign(campaign);
+      onCampaignSelect(campaign);
+    } catch (error) {
+      console.error("Error saving campaign:", error);
+    }
+  };
+
+  const handleDeleteCampaign = async (id: string) => {
+    try {
+      await deleteCampaign(id);
+      setCampaigns((prev) => prev.filter((campaign) => campaign.id !== id));
+      setSelectedCampaign(null);
+      onCampaignSelect(null);
+    } catch (error) {
+      console.error("Error deleting campaign:", error);
+    }
   };
 
   return (
-    <div className="w-full h-full min-h-[600px] bg-background p-6">
-      <h2 className="text-2xl font-bold mb-6">Response Management</h2>
+    <div className="p-6 bg-background min-h-screen">
+      <div className="max-w-6xl mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Email Campaign Manager</h1>
+          <Button onClick={handleNewCampaign}>
+            <Plus className="mr-2 h-4 w-4" /> New Campaign
+          </Button>
+        </div>
 
-      <ScrollArea className="h-[calc(100vh-200px)]">
-        <div className="space-y-6">
-          {responses.map((response, index) => (
-            <Card key={index} className="p-6">
-              <Tabs defaultValue="original" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-4">
-                  <TabsTrigger value="original">Original Response</TabsTrigger>
-                  <TabsTrigger value="ai">AI Response</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="original" className="mt-0">
-                  <div className="bg-muted p-4 rounded-md space-y-2">
-                    {Object.entries(response).map(([key, value]) => (
-                      <div key={key} className="flex flex-col">
-                        <span className="font-medium text-sm text-muted-foreground">
-                          {key}:
-                        </span>
-                        <span>{value}</span>
-                      </div>
-                    ))}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Campaign List */}
+          <Card className="p-4 col-span-1">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Campaigns</h2>
+              <div className="text-sm text-muted-foreground">
+                Select for AI responses
+              </div>
+            </div>
+            <div className="space-y-2">
+              {campaigns.map((campaign) => (
+                <div
+                  key={campaign.id}
+                  className={cn(
+                    "p-3 rounded-lg cursor-pointer hover:bg-accent",
+                    selectedCampaign?.id === campaign.id ? "bg-accent" : "",
+                  )}
+                  onClick={() => {
+                    setSelectedCampaign(campaign);
+                    setEditMode(false);
+                    onCampaignSelect(campaign);
+                  }}
+                >
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-medium">{campaign.name}</h3>
+                    <Checkbox
+                      checked={selectedCampaign?.id === campaign.id}
+                      onCheckedChange={() => {
+                        if (selectedCampaign?.id === campaign.id) {
+                          setSelectedCampaign(null);
+                          onCampaignSelect(null);
+                        } else {
+                          setSelectedCampaign(campaign);
+                          onCampaignSelect(campaign);
+                        }
+                      }}
+                    />
                   </div>
-                </TabsContent>
+                </div>
+              ))}
+            </div>
+          </Card>
 
-                <TabsContent value="ai" className="mt-0">
+          {/* Campaign Editor */}
+          <Card className="p-4 col-span-1 md:col-span-2">
+            <h2 className="text-xl font-semibold mb-4">
+              {editMode ? "Create Campaign" : "Campaign Details"}
+            </h2>
+            {selectedCampaign || editMode ? (
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Campaign Name</label>
+                  <Input
+                    value={editMode ? newCampaign.name : selectedCampaign?.name}
+                    onChange={(e) =>
+                      editMode &&
+                      setNewCampaign((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    disabled={!editMode}
+                  />
+                </div>
+
+                {/* AI Configuration Section */}
+                <Card className="p-4 mt-6">
                   <div className="space-y-4">
-                    {editMode[index] ? (
-                      <>
+                    <div className="flex items-center">
+                      <Settings className="w-5 h-5 mr-2" />
+                      <h3 className="text-lg font-semibold">
+                        AI Configuration
+                      </h3>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium">
+                          Email Signature
+                        </label>
                         <Textarea
-                          value={editContent[index]}
+                          placeholder="Enter your email signature..."
+                          value={
+                            editMode
+                              ? newCampaign.signature
+                              : selectedCampaign?.signature
+                          }
                           onChange={(e) =>
-                            setEditContent((prev) => ({
+                            editMode &&
+                            setNewCampaign((prev) => ({
                               ...prev,
-                              [index]: e.target.value,
+                              signature: e.target.value,
                             }))
                           }
-                          className="min-h-[100px]"
+                          disabled={!editMode}
+                          rows={3}
                         />
-                        <Button
-                          onClick={() => handleEditSave(String(index))}
-                          className="mr-2"
-                        >
-                          <Save className="w-4 h-4 mr-2" />
-                          Save Changes
-                        </Button>
-                      </>
-                    ) : (
-                      <div className="bg-muted p-4 rounded-md">
-                        {loading[index] ? (
-                          <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            <span className="ml-2">
-                              Generating AI response...
-                            </span>
-                          </div>
-                        ) : aiResponses[index]?.content ? (
-                          <div className="whitespace-pre-wrap">
-                            {aiResponses[index].content}
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            <span className="ml-2">
-                              Waiting to generate response...
-                            </span>
-                          </div>
-                        )}
                       </div>
-                    )}
 
-                    <div className="flex justify-end space-x-2 mt-4">
-                      {!editMode[index] && aiResponses[index]?.content && (
-                        <>
-                          <Button
-                            variant="outline"
-                            onClick={() =>
-                              handleEditStart(
-                                String(index),
-                                aiResponses[index].content,
-                              )
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Campaign Type
+                          </label>
+                          <select
+                            className="w-full px-3 py-2 border rounded-md bg-background"
+                            value={
+                              editMode
+                                ? newCampaign.campaign_type
+                                : selectedCampaign?.campaign_type || ""
                             }
+                            onChange={(e) =>
+                              editMode &&
+                              setNewCampaign((prev) => ({
+                                ...prev,
+                                campaign_type: e.target.value,
+                              }))
+                            }
+                            disabled={!editMode}
                           >
-                            <Edit2 className="w-4 h-4 mr-2" />
-                            Edit Response
-                          </Button>
-                          <Button
-                            variant="default"
-                            onClick={() => onApprove(String(index))}
+                            <option value="">Select a type...</option>
+                            <option value="thanks">Thank You</option>
+                            <option value="birthday">Happy Birthday</option>
+                            <option value="anniversary">
+                              Work Anniversary
+                            </option>
+                            <option value="welcome">Welcome Onboard</option>
+                            <option value="promotion">
+                              Promotion Congratulations
+                            </option>
+                            <option value="christmas">Merry Christmas</option>
+                            <option value="new_year">Happy New Year</option>
+                            <option value="thanksgiving">Thanksgiving</option>
+                            <option value="easter">Happy Easter</option>
+                            <option value="halloween">Happy Halloween</option>
+                            <option value="valentines">Valentine's Day</option>
+                            <option value="mothers_day">Mother's Day</option>
+                            <option value="fathers_day">Father's Day</option>
+                            <option value="graduation">
+                              Graduation Congratulations
+                            </option>
+                            <option value="retirement">Happy Retirement</option>
+                            <option value="get_well">Get Well Soon</option>
+                            <option value="condolences">Condolences</option>
+                            <option value="baby">
+                              New Baby Congratulations
+                            </option>
+                            <option value="wedding">
+                              Wedding Congratulations
+                            </option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Response Size
+                          </label>
+                          <RadioGroup
+                            value={
+                              editMode
+                                ? newCampaign.response_size
+                                : selectedCampaign?.response_size
+                            }
+                            onValueChange={(value) =>
+                              editMode &&
+                              setNewCampaign((prev) => ({
+                                ...prev,
+                                response_size: value as
+                                  | "small"
+                                  | "medium"
+                                  | "large",
+                              }))
+                            }
+                            disabled={!editMode}
+                            className="flex space-x-4"
                           >
-                            <ThumbsUp className="w-4 h-4 mr-2" />
-                            Approve
-                          </Button>
-                        </>
-                      )}
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="small" id="small" />
+                              <Label htmlFor="small">Small</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="medium" id="medium" />
+                              <Label htmlFor="medium">Medium</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="large" id="large" />
+                              <Label htmlFor="large">Large</Label>
+                            </div>
+                          </RadioGroup>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {editMode ? (
+                              <>
+                                {newCampaign.response_size === "small" &&
+                                  "Brief response with a few words"}
+                                {newCampaign.response_size === "medium" &&
+                                  "Standard response with a paragraph"}
+                                {newCampaign.response_size === "large" &&
+                                  "Detailed response with multiple paragraphs"}
+                              </>
+                            ) : (
+                              <>
+                                {selectedCampaign?.response_size === "small" &&
+                                  "Brief response with a few words"}
+                                {selectedCampaign?.response_size === "medium" &&
+                                  "Standard response with a paragraph"}
+                                {selectedCampaign?.response_size === "large" &&
+                                  "Detailed response with multiple paragraphs"}
+                              </>
+                            )}
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </TabsContent>
-              </Tabs>
+                </Card>
 
-              <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <div className="flex items-center space-x-2">
-                  <ArrowLeftRight className="w-4 h-4" />
-                  <span className="text-sm text-muted-foreground">
-                    Status:{" "}
-                    {loading[index]
-                      ? "Generating..."
-                      : aiResponses[index]?.status || "Pending"}
-                  </span>
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-4 mt-6">
+                  {editMode ? (
+                    <Button onClick={handleSaveCampaign} className="w-32">
+                      <Save className="mr-2 h-4 w-4" /> Save
+                    </Button>
+                  ) : (
+                    selectedCampaign && (
+                      <div className="space-x-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => handleEditCampaign(selectedCampaign)}
+                          className="w-32"
+                        >
+                          <Edit className="mr-2 h-4 w-4" /> Edit
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          onClick={() =>
+                            handleDeleteCampaign(selectedCampaign.id)
+                          }
+                          className="w-32"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </Button>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
-            </Card>
-          ))}
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                Select a campaign or create a new one to get started
+              </div>
+            )}
+          </Card>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 };
 
-export default ResponsePanel;
+export default CampaignManager;
