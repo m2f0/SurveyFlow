@@ -44,6 +44,7 @@ export default function CampaignManager({
     status: "draft" as const,
     signature: "",
     response_size: "medium" as const,
+    campaign_type: "",
   });
 
   React.useEffect(() => {
@@ -69,6 +70,7 @@ export default function CampaignManager({
       status: "draft",
       signature: "",
       response_size: "medium",
+      campaign_type: "",
     });
   };
 
@@ -80,6 +82,7 @@ export default function CampaignManager({
       status: campaign.status,
       signature: campaign.signature || "",
       response_size: campaign.response_size || "medium",
+      campaign_type: campaign.campaign_type || "",
     });
   };
 
@@ -92,6 +95,7 @@ export default function CampaignManager({
           name: newCampaign.name,
           signature: newCampaign.signature,
           response_size: newCampaign.response_size,
+          campaign_type: newCampaign.campaign_type,
         });
         setCampaigns((prev) =>
           prev.map((c) => (c.id === campaign.id ? campaign : c)),
@@ -103,6 +107,7 @@ export default function CampaignManager({
           status: "draft",
           signature: newCampaign.signature,
           response_size: newCampaign.response_size,
+          campaign_type: newCampaign.campaign_type,
         });
         setCampaigns((prev) => [campaign, ...prev]);
       }
@@ -114,6 +119,7 @@ export default function CampaignManager({
         status: "draft",
         signature: "",
         response_size: "medium",
+        campaign_type: "",
       });
       setSelectedCampaign(campaign);
       onCampaignSelect(campaign);
@@ -242,63 +248,120 @@ export default function CampaignManager({
                         />
                       </div>
 
-                      <div className="space-y-2">
-                        <label className="text-sm font-medium">
-                          Response Size
-                        </label>
-                        <RadioGroup
-                          value={
-                            editMode
-                              ? newCampaign.response_size
-                              : selectedCampaign?.response_size
-                          }
-                          onValueChange={(value) =>
-                            editMode &&
-                            setNewCampaign((prev) => ({
-                              ...prev,
-                              response_size: value as
-                                | "small"
-                                | "medium"
-                                | "large",
-                            }))
-                          }
-                          disabled={!editMode}
-                          className="flex space-x-4"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="small" id="small" />
-                            <Label htmlFor="small">Small</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="medium" id="medium" />
-                            <Label htmlFor="medium">Medium</Label>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <RadioGroupItem value="large" id="large" />
-                            <Label htmlFor="large">Large</Label>
-                          </div>
-                        </RadioGroup>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {editMode ? (
-                            <>
-                              {newCampaign.response_size === "small" &&
-                                "Brief response with a few words"}
-                              {newCampaign.response_size === "medium" &&
-                                "Standard response with a paragraph"}
-                              {newCampaign.response_size === "large" &&
-                                "Detailed response with multiple paragraphs"}
-                            </>
-                          ) : (
-                            <>
-                              {selectedCampaign?.response_size === "small" &&
-                                "Brief response with a few words"}
-                              {selectedCampaign?.response_size === "medium" &&
-                                "Standard response with a paragraph"}
-                              {selectedCampaign?.response_size === "large" &&
-                                "Detailed response with multiple paragraphs"}
-                            </>
-                          )}
-                        </p>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Campaign Type
+                          </label>
+                          <select
+                            value={
+                              editMode
+                                ? newCampaign.campaign_type
+                                : selectedCampaign?.campaign_type || ""
+                            }
+                            onChange={(e) =>
+                              editMode &&
+                              setNewCampaign((prev) => ({
+                                ...prev,
+                                campaign_type: e.target.value,
+                              }))
+                            }
+                            disabled={!editMode}
+                            className="w-full p-2 border rounded-md bg-background"
+                          >
+                            <option value="">Select a type...</option>
+                            <option value="thanks">Thank You</option>
+                            <option value="birthday">Happy Birthday</option>
+                            <option value="anniversary">
+                              Work Anniversary
+                            </option>
+                            <option value="welcome">Welcome Onboard</option>
+                            <option value="promotion">
+                              Promotion Congratulations
+                            </option>
+                            <option value="christmas">Merry Christmas</option>
+                            <option value="new_year">Happy New Year</option>
+                            <option value="thanksgiving">Thanksgiving</option>
+                            <option value="easter">Happy Easter</option>
+                            <option value="halloween">Happy Halloween</option>
+                            <option value="valentines">Valentine's Day</option>
+                            <option value="mothers_day">Mother's Day</option>
+                            <option value="fathers_day">Father's Day</option>
+                            <option value="graduation">
+                              Graduation Congratulations
+                            </option>
+                            <option value="retirement">Happy Retirement</option>
+                            <option value="get_well">Get Well Soon</option>
+                            <option value="condolences">Condolences</option>
+                            <option value="baby">
+                              New Baby Congratulations
+                            </option>
+                            <option value="wedding">
+                              Wedding Congratulations
+                            </option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Response Size
+                          </label>
+                          <RadioGroup
+                            value={
+                              editMode
+                                ? newCampaign.response_size
+                                : selectedCampaign?.response_size
+                            }
+                            onValueChange={(value) =>
+                              editMode &&
+                              setNewCampaign((prev) => ({
+                                ...prev,
+                                response_size: value as
+                                  | "small"
+                                  | "medium"
+                                  | "large",
+                              }))
+                            }
+                            disabled={!editMode}
+                            className="flex space-x-4"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="small" id="small" />
+                              <Label htmlFor="small">Small</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="medium" id="medium" />
+                              <Label htmlFor="medium">Medium</Label>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <RadioGroupItem value="large" id="large" />
+                              <Label htmlFor="large">Large</Label>
+                            </div>
+                          </RadioGroup>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {editMode ? (
+                              <>
+                                {newCampaign.response_size === "small" &&
+                                  "Brief response with a few words"}
+                                {newCampaign.response_size === "medium" &&
+                                  "Standard response with a paragraph"}
+                                {newCampaign.response_size === "large" &&
+                                  "Detailed response with multiple paragraphs"}
+                              </>
+                            ) : (
+                              <>
+                                {selectedCampaign?.response_size === "small" &&
+                                  "Brief response with a few words"}
+                                {selectedCampaign?.response_size === "medium" &&
+                                  "Standard response with a paragraph"}
+                                {selectedCampaign?.response_size === "large" &&
+                                  "Detailed response with multiple paragraphs"}
+                              </>
+                            )}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>

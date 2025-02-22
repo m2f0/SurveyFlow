@@ -18,6 +18,7 @@ export interface Database {
           status: "draft" | "scheduled" | "sent";
           signature: string | null;
           response_size: "small" | "medium" | "large" | null;
+          campaign_type: string | null;
         };
         Insert: {
           id?: string;

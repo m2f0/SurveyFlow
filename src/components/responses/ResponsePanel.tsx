@@ -20,6 +20,7 @@ interface ResponsePanelProps {
   companyDetails?: string;
   signature?: string;
   responseSize?: "small" | "medium" | "large";
+  campaignType?: string;
 }
 
 interface AIResponse {
@@ -78,6 +79,7 @@ const ResponsePanel = ({
   companyDetails = "",
   signature = "",
   responseSize = "medium",
+  campaignType = "general",
 }: ResponsePanelProps) => {
   const [editMode, setEditMode] = useState<Record<string, boolean>>({});
   const [editContent, setEditContent] = useState<Record<string, string>>({});
@@ -103,6 +105,7 @@ const ResponsePanel = ({
             companyDetails,
             signature,
             responseSize,
+            campaignType,
           );
           // Add a small delay between requests
           await new Promise((resolve) => setTimeout(resolve, 1000));
