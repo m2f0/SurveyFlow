@@ -20,6 +20,7 @@ interface ResponsePanelProps {
   companyDetails?: string;
   signature?: string;
   responseSize?: "small" | "medium" | "large";
+  campaignType?: string;
 }
 
 interface AIResponse {
@@ -38,6 +39,8 @@ const generateResponseForIndex = async (
   toast: any,
   companyName?: string,
   companyDetails?: string,
+  signature?: string,
+  responseSize?: "small" | "medium" | "large",
 ) => {
   setLoading((prev) => ({ ...prev, [index]: true }));
   try {
@@ -45,6 +48,8 @@ const generateResponseForIndex = async (
       response,
       companyName,
       companyDetails,
+      signature,
+      responseSize,
     );
     setAiResponses((prev) => ({
       ...prev,
@@ -74,6 +79,7 @@ const ResponsePanel = ({
   companyDetails = "",
   signature = "",
   responseSize = "medium",
+  campaignType = "general",
 }: ResponsePanelProps) => {
   const [editMode, setEditMode] = useState<Record<string, boolean>>({});
   const [editContent, setEditContent] = useState<Record<string, string>>({});
@@ -99,6 +105,7 @@ const ResponsePanel = ({
             companyDetails,
             signature,
             responseSize,
+            campaignType,
           );
           // Add a small delay between requests
           await new Promise((resolve) => setTimeout(resolve, 1000));
