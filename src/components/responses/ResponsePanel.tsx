@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeftRight, Edit2, Save, ThumbsUp } from "lucide-react";
+import { ArrowLeftRight, Edit2, Save, ThumbsUp, Loader2 } from "lucide-react";
+import { generateAIResponse } from "@/lib/openai";
+import { useToast } from "@/components/ui/use-toast";
 
 interface CSVData {
   [key: string]: string;
@@ -16,6 +18,12 @@ interface ResponsePanelProps {
   onEdit?: (id: string, content: string) => void;
 }
 
+interface AIResponse {
+  id: string;
+  content: string;
+  status: "pending" | "generated" | "approved";
+}
+
 const ResponsePanel = ({
   responses = [],
   onApprove = () => {},
@@ -23,6 +31,11 @@ const ResponsePanel = ({
 }: ResponsePanelProps) => {
   const [editMode, setEditMode] = useState<Record<string, boolean>>({});
   const [editContent, setEditContent] = useState<Record<string, string>>({});
+  const [aiResponses, setAiResponses] = useState<Record<string, AIResponse>>(
+    {},
+  );
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
 
   const handleEditStart = (id: string, content: string) => {
     setEditMode((prev) => ({ ...prev, [id]: true }));
@@ -85,7 +98,61 @@ const ResponsePanel = ({
                       </>
                     ) : (
                       <div className="bg-muted p-4 rounded-md">
-                        AI response will be generated here
+                        {loading[index] ? (
+                          <div className="flex items-center justify-center py-4">
+                            <Loader2 className="w-6 h-6 animate-spin" />
+                            <span className="ml-2">
+                              Generating AI response...
+                            </span>
+                          </div>
+                        ) : aiResponses[index]?.content ? (
+                          aiResponses[index].content
+                        ) : (
+                          <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                            <p className="text-muted-foreground">
+                              No AI response generated yet
+                            </p>
+                            <Button
+                              onClick={async () => {
+                                setLoading((prev) => ({
+                                  ...prev,
+                                  [index]: true,
+                                }));
+                                try {
+                                  const aiResponse =
+                                    await generateAIResponse(response);
+                                  setAiResponses((prev) => ({
+                                    ...prev,
+                                    [index]: {
+                                      id: String(index),
+                                      content: aiResponse,
+                                      status: "generated",
+                                    },
+                                  }));
+                                  toast({
+                                    title: "Success",
+                                    description:
+                                      "AI response generated successfully",
+                                  });
+                                } catch (error) {
+                                  toast({
+                                    variant: "destructive",
+                                    title: "Error",
+                                    description:
+                                      "Failed to generate AI response",
+                                  });
+                                } finally {
+                                  setLoading((prev) => ({
+                                    ...prev,
+                                    [index]: false,
+                                  }));
+                                }
+                              }}
+                            >
+                              Generate AI Response
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     )}
 
