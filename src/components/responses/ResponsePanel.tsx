@@ -38,6 +38,8 @@ const generateResponseForIndex = async (
   toast: any,
   companyName?: string,
   companyDetails?: string,
+  signature?: string,
+  responseSize?: "small" | "medium" | "large",
 ) => {
   setLoading((prev) => ({ ...prev, [index]: true }));
   try {
@@ -45,6 +47,8 @@ const generateResponseForIndex = async (
       response,
       companyName,
       companyDetails,
+      signature,
+      responseSize,
     );
     setAiResponses((prev) => ({
       ...prev,
