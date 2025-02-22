@@ -10,35 +10,40 @@ import {
   BarChart2,
   Menu,
   ChevronLeft,
-  ChevronRight,
-  Sun,
-  Moon,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+
+interface TabChangeHandler {
+  (tab: string): void;
+}
 
 interface SidebarProps {
   className?: string;
   defaultCollapsed?: boolean;
+  onTabChange?: TabChangeHandler;
+  onToggle?: () => void;
+  isVisible?: boolean;
 }
 
 const navItems = [
-  { icon: Home, label: "Dashboard", path: "/" },
-  { icon: FileText, label: "Responses", path: "/responses" },
-  { icon: Mail, label: "Campaigns", path: "/campaigns" },
-  { icon: BarChart2, label: "Analytics", path: "/analytics" },
+  { icon: Mail, label: "Campaigns", path: "campaigns" },
+  { icon: Home, label: "Upload", path: "upload" },
+  { icon: FileText, label: "Responses", path: "responses" },
+  { icon: BarChart2, label: "Analytics", path: "analytics" },
 ];
 
 const Sidebar = ({
   className = "",
   defaultCollapsed = false,
+  onTabChange = () => {},
+  onToggle = () => {},
+  isVisible = true,
 }: SidebarProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
-  const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState("upload");
 
   // Animated background pattern
   const Pattern = () => (
-    <div className="absolute inset-0 overflow-hidden opacity-10">
+    <div className="absolute inset-0 overflow-hidden opacity-10 flex">
       {[...Array(20)].map((_, i) => (
         <motion.div
           key={i}
@@ -62,10 +67,11 @@ const Sidebar = ({
   );
 
   return (
-    <div
+    <aside
       className={cn(
-        "relative h-screen bg-background border-r transition-all duration-300",
-        isCollapsed ? "w-16" : "w-64",
+        "fixed top-0 left-0 z-40 h-screen bg-background border-r transition-transform duration-300",
+        isVisible ? "translate-x-0" : "-translate-x-full",
+        "w-64",
         className,
       )}
     >
@@ -74,18 +80,14 @@ const Sidebar = ({
       <div className="flex flex-col h-full">
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
-          {!isCollapsed && <div className="font-bold text-xl">Survey AI</div>}
+          <div className="font-bold text-xl">Survey AI</div>
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="ml-auto"
+            onClick={onToggle}
+            className="h-9 w-9 rounded-md p-0"
           >
-            {isCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
+            <ChevronLeft className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all" />
           </Button>
         </div>
 
@@ -98,16 +100,17 @@ const Sidebar = ({
                 <Button
                   key={item.path}
                   variant="ghost"
+                  onClick={() => {
+                    setActiveTab(item.path);
+                    onTabChange(item.path);
+                  }}
                   className={cn(
-                    "w-full justify-start",
-                    isCollapsed ? "px-2" : "px-4",
+                    "w-full justify-start px-4",
+                    activeTab === item.path ? "bg-accent" : "",
                   )}
-                  onClick={() => navigate(item.path)}
                 >
-                  <Icon
-                    className={cn("h-5 w-5", isCollapsed ? "mr-0" : "mr-2")}
-                  />
-                  {!isCollapsed && <span>{item.label}</span>}
+                  <Icon className="h-5 w-5 mr-2" />
+                  <span>{item.label}</span>
                 </Button>
               );
             })}
@@ -116,20 +119,14 @@ const Sidebar = ({
 
         {/* Footer */}
         <div className="p-4 border-t flex items-center justify-between">
-          <Button
-            variant="ghost"
-            className={cn(
-              "justify-start",
-              isCollapsed ? "px-2 w-full" : "px-4 flex-1",
-            )}
-          >
-            <Menu className={cn("h-5 w-5", isCollapsed ? "mr-0" : "mr-2")} />
-            {!isCollapsed && <span>Menu</span>}
+          <Button variant="ghost" className="justify-start px-4 flex-1">
+            <Menu className="h-5 w-5 mr-2" />
+            <span>Menu</span>
           </Button>
           <ThemeToggle />
         </div>
       </div>
-    </div>
+    </aside>
   );
 };
 

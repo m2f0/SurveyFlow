@@ -7,13 +7,13 @@ import AnalyticsDashboard from "../analytics/AnalyticsDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Card } from "../ui/card";
 
+interface CSVData {
+  [key: string]: string;
+}
+
 interface DashboardContentProps {
   activeTab?: string;
   onTabChange?: (value: string) => void;
-}
-
-interface CSVData {
-  [key: string]: string;
 }
 
 const DashboardContent = ({
@@ -21,7 +21,6 @@ const DashboardContent = ({
   onTabChange = () => {},
 }: DashboardContentProps) => {
   const [responses, setResponses] = useState<CSVData[]>([]);
-  const [currentTab, setCurrentTab] = useState(activeTab);
   const [analyticsData, setAnalyticsData] = useState({
     responseData: [
       {
@@ -56,21 +55,22 @@ const DashboardContent = ({
         clicked: Math.round(data.length * 0.45),
       },
     });
-    setCurrentTab("responses");
+    onTabChange("responses");
   };
 
   return (
     <div className="w-full min-h-screen bg-background p-4 lg:p-6">
       <Card className="w-full h-full bg-card">
-        <Tabs
-          value={currentTab}
-          className="w-full"
-          onValueChange={setCurrentTab}
-        >
+        <Tabs value={activeTab} className="w-full" onValueChange={onTabChange}>
           <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2">
+            <TabsTrigger
+              value="campaigns"
+              className="bg-[#0F172A] text-white hover:text-white hover:bg-[#0F172A]/90"
+            >
+              Campaigns
+            </TabsTrigger>
             <TabsTrigger value="upload">CSV Upload</TabsTrigger>
             <TabsTrigger value="responses">Responses</TabsTrigger>
-            <TabsTrigger value="campaigns">Campaigns</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
