@@ -26,7 +26,7 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { icon: Mail, label: "Campaigns", path: "campaigns" },
+  { icon: Mail, label: "Campaigns", path: "campaigns", primary: true },
   { icon: Home, label: "Upload", path: "upload" },
   { icon: FileText, label: "Responses", path: "responses" },
   { icon: BarChart2, label: "Analytics", path: "analytics" },
@@ -39,7 +39,7 @@ const Sidebar = ({
   onToggle = () => {},
   isVisible = true,
 }: SidebarProps) => {
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState("campaigns");
 
   // Animated background pattern
   const Pattern = () => (
@@ -107,6 +107,9 @@ const Sidebar = ({
                   className={cn(
                     "w-full justify-start px-4",
                     activeTab === item.path ? "bg-accent" : "",
+                    item.primary
+                      ? "bg-[#0F172A] text-white hover:text-white hover:bg-[#0F172A]/90"
+                      : "",
                   )}
                 >
                   <Icon className="h-5 w-5 mr-2" />
