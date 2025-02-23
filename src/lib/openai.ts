@@ -1,8 +1,8 @@
 import OpenAI from "openai";
 
-export const openai = new OpenAI({
+const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true, // Note: In production, you should use a backend service
+  dangerouslyAllowBrowser: true,
 });
 
 export async function generateAIResponse(
@@ -33,33 +33,6 @@ Write a response that combines:
 1. Addressing their survey feedback specifically
 2. Adding appropriate ${campaignType || "general"} wishes/message
 
-For example, if it's a Christmas campaign:
-- First acknowledge and respond to their survey feedback
-- Then add warm Christmas wishes
-- Blend both aspects naturally
-
-Campaign type guide (${campaignType || "general"}):
-- christmas: Add warm Christmas wishes and holiday spirit
-- new_year: Include New Year wishes and future hopes
-- thanksgiving: Express gratitude and Thanksgiving wishes
-- birthday: Add birthday wishes and celebration
-- anniversary: Celebrate work milestones
-- welcome: Welcome new team members warmly
-- promotion: Congratulate on career advancement
-- easter/halloween/valentines: Include seasonal greetings
-- mothers_day/fathers_day: Celebrate parental roles
-- graduation: Celebrate academic achievement
-- retirement: Honor career accomplishments
-- get_well: Express care and recovery wishes
-- condolences: Show empathy and support
-- baby/wedding: Share joy for life milestones
-
-Always:
-1. Address their specific situation or feedback
-2. Maintain an appropriate tone for the occasion
-3. Show genuine care and appreciation
-4. Keep it personal and authentic
-
 Their survey responses:\n${Object.entries(surveyData)
       .map(([key, value]) => `${key}: ${value}`)
       .join("\n")}
@@ -87,8 +60,7 @@ ${companyDetails ? `Important - Include these company details naturally in the r
     const content =
       response.choices[0]?.message?.content || "Unable to generate response";
 
-    // Add signature separately
-    return `${content}\n\n${signature || `Warm regards,\n${companyName || "[Your Company Name]"}`}`;
+    return `${content}\n\n${signature || `Warm regards,\n${companyName || "[Your Company Name]"}}`}`;
   } catch (error) {
     console.error("Error generating AI response:", error);
     return "Error generating AI response. Please try again.";
