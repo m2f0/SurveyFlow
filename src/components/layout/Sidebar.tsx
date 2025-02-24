@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +17,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
 import { AnimatedBackground } from "./AnimatedBackground";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface TabChangeHandler {
   (tab: string): void;
@@ -45,7 +46,42 @@ const Sidebar = ({
   isVisible = true,
 }: SidebarProps) => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("campaigns");
+  const [credits, setCredits] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchCredits = async () => {
+      if (!user?.id) return;
+
+      try {
+        const { data, error } = await supabase
+          .from("users")
+          .select("credits")
+          .eq("id", user.id)
+          .single();
+
+        if (error) throw error;
+        setCredits(data?.credits || 0);
+      } catch (error) {
+        console.error("Error fetching credits:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "Failed to fetch credits",
+        });
+      }
+    };
+
+    fetchCredits();
+
+    // Set up polling for credits
+    const pollInterval = setInterval(fetchCredits, 2000); // Poll every 2 seconds
+
+    return () => {
+      clearInterval(pollInterval);
+    };
+  }, [user?.id, toast]);
 
   return (
     <aside
@@ -102,7 +138,7 @@ const Sidebar = ({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t">
+        <div className="p-4 border-t space-y-4">
           <div className="flex items-center justify-between">
             <ThemeToggle />
             <Button
@@ -137,6 +173,11 @@ const Sidebar = ({
               <LogOut className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all" />
               <span className="sr-only">Sign out</span>
             </Button>
+          </div>
+
+          <div className="flex items-center justify-between text-sm text-muted-foreground border-t pt-4">
+            <span>Available Credits</span>
+            <span className="font-medium">{credits.toLocaleString()}</span>
           </div>
         </div>
       </div>
