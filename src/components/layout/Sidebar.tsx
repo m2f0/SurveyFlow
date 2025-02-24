@@ -33,7 +33,7 @@ interface SidebarProps {
 
 const navItems = [
   { icon: Mail, label: "Campaigns", path: "campaigns", primary: true },
-  { icon: Home, label: "Upload", path: "upload" },
+  { icon: Upload, label: "Upload", path: "upload" },
   { icon: FileText, label: "Responses", path: "responses" },
   { icon: BarChart2, label: "Analytics", path: "analytics" },
 ];
