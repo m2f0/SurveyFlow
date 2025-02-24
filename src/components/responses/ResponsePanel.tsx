@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { updateUserCredits } from "@/lib/supabase/users";
 import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 
 interface CSVData {
   [key: string]: string;
@@ -164,9 +165,90 @@ const ResponsePanel = ({
     setEditMode((prev) => ({ ...prev, [id]: false }));
   };
 
+  const handleGenerateAllResponses = async () => {
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to generate responses",
+      });
+      return;
+    }
+
+    // Calculate total tokens needed (rough estimate)
+    const estimatedTokensPerResponse = 1000;
+    const totalTokensNeeded = responses.length * estimatedTokensPerResponse;
+
+    // Check if user has enough credits
+    try {
+      const { data: userData, error: creditsError } = await supabase
+        .from("users")
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+
+      if (creditsError) throw creditsError;
+
+      if (!userData || userData.credits < totalTokensNeeded) {
+        toast({
+          variant: "destructive",
+          title: "Insufficient credits",
+          description: `You need at least ${totalTokensNeeded} credits to generate all responses.`,
+        });
+        return;
+      }
+
+      // Generate responses one by one with a small delay to avoid rate limiting
+      for (let i = 0; i < responses.length; i++) {
+        if (!aiResponses[i]?.content) {
+          await generateResponseForIndex(
+            i,
+            responses[i],
+            setLoading,
+            setAiResponses,
+            toast,
+            user.id,
+            companyName,
+            companyDetails,
+            signature,
+            responseSize,
+            campaignType,
+          );
+          // Add a small delay between requests
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to generate responses",
+      });
+    }
+  };
+
   return (
     <div className="w-full h-full min-h-[600px] bg-background p-6">
-      <h2 className="text-2xl font-bold mb-6">Response Management</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Response Management</h2>
+        {responses.length > 0 && (
+          <Button
+            onClick={handleGenerateAllResponses}
+            variant="default"
+            className="flex items-center gap-2"
+          >
+            <Loader2
+              className={cn(
+                "h-4 w-4",
+                Object.values(loading).some((l) => l)
+                  ? "animate-spin"
+                  : "hidden",
+              )}
+            />
+            Generate All Responses
+          </Button>
+        )}
+      </div>
 
       <ScrollArea className="h-[calc(100vh-200px)]">
         <div className="space-y-6">
