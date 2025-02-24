@@ -114,6 +114,7 @@ const DashboardContent = ({
                 companyDetails={selectedCampaign?.company_details}
                 signature={selectedCampaign?.signature}
                 responseSize={selectedCampaign?.response_size}
+                campaignId={selectedCampaign?.id}
               />
             </TabsContent>
 

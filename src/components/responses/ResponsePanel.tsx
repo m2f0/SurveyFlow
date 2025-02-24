@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,8 @@ import { useAuth } from "@/lib/hooks/useAuth";
 import { updateUserCredits } from "@/lib/supabase/users";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useResponses } from "@/lib/context/ResponseContext";
 
 interface CSVData {
   [key: string]: string;
@@ -25,6 +27,7 @@ interface ResponsePanelProps {
   signature?: string;
   responseSize?: "small" | "medium" | "large";
   campaignType?: string;
+  campaignId?: string;
 }
 
 interface AIResponse {
@@ -34,82 +37,9 @@ interface AIResponse {
   usage: TokenUsage;
 }
 
-const generateResponseForIndex = async (
-  index: number,
-  response: CSVData,
-  setLoading: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
-  setAiResponses: React.Dispatch<
-    React.SetStateAction<Record<string, AIResponse>>
-  >,
-  toast: any,
-  userId: string,
-  companyName?: string,
-  companyDetails?: string,
-  signature?: string,
-  responseSize?: "small" | "medium" | "large",
-  campaignType?: string,
-) => {
-  setLoading((prev) => ({ ...prev, [index]: true }));
-  try {
-    const result = await generateAIResponse(
-      response,
-      companyName,
-      companyDetails,
-      signature,
-      responseSize,
-      campaignType,
-    );
-
-    // Deduct tokens from user credits
-    try {
-      // Check if user has enough credits before generating
-      const { data: userData, error: creditsError } = await supabase
-        .from("users")
-        .select("credits")
-        .eq("id", userId)
-        .single();
-
-      if (creditsError) throw creditsError;
-
-      // Estimate token usage (approximate - adjust these numbers based on your needs)
-      const estimatedTokens = 1000; // Base estimate per response
-
-      if (!userData || userData.credits < estimatedTokens) {
-        throw new Error(
-          `Insufficient credits. You need at least ${estimatedTokens} credits to generate a response.`,
-        );
-      }
-
-      // Deduct credits after successful generation
-      await updateUserCredits(userId, result.usage.total_tokens);
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to update credits",
-      });
-      return;
-    }
-    setAiResponses((prev) => ({
-      ...prev,
-      [index]: {
-        id: String(index),
-        content: result.content,
-        status: "generated",
-        usage: result.usage,
-      },
-    }));
-  } catch (error) {
-    console.error("Error generating response:", error);
-    toast({
-      variant: "destructive",
-      title: "Error",
-      description: `Failed to generate AI response for item ${index + 1}`,
-    });
-  } finally {
-    setLoading((prev) => ({ ...prev, [index]: false }));
-  }
-};
+interface SelectedResponses {
+  [key: number]: boolean;
+}
 
 const ResponsePanel = ({
   responses = [],
@@ -120,6 +50,7 @@ const ResponsePanel = ({
   signature = "",
   responseSize = "medium",
   campaignType = "general",
+  campaignId = "",
 }: ResponsePanelProps) => {
   const [editMode, setEditMode] = useState<Record<string, boolean>>({});
   const [editContent, setEditContent] = useState<Record<string, string>>({});
@@ -127,10 +58,105 @@ const ResponsePanel = ({
     {},
   );
   const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const [selectedResponses, setSelectedResponses] = useState<SelectedResponses>(
+    {},
+  );
   const { toast } = useToast();
   const { user } = useAuth();
+  const { getResponsesForCampaign, setResponsesForCampaign } = useResponses();
 
-  const handleGenerateResponse = async (index: number) => {
+  // Load responses from context when campaignId changes
+  React.useEffect(() => {
+    if (campaignId) {
+      const savedResponses = getResponsesForCampaign(campaignId);
+      setAiResponses(savedResponses);
+    }
+  }, [campaignId, getResponsesForCampaign]);
+
+  const generateResponseForIndex = async (index: number, response: CSVData) => {
+    setLoading((prev) => ({ ...prev, [index]: true }));
+    try {
+      const result = await generateAIResponse(
+        response,
+        companyName,
+        companyDetails,
+        signature,
+        responseSize,
+        campaignType,
+      );
+
+      // Check credits and deduct tokens
+      try {
+        const { data: userData, error: creditsError } = await supabase
+          .from("users")
+          .select("credits")
+          .eq("id", user?.id)
+          .single();
+
+        if (creditsError) throw creditsError;
+
+        const estimatedTokens = 1000;
+
+        if (!userData || userData.credits < estimatedTokens) {
+          throw new Error(
+            `Insufficient credits. You need at least ${estimatedTokens} credits to generate a response.`,
+          );
+        }
+
+        await updateUserCredits(user?.id!, result.usage.total_tokens);
+      } catch (error: any) {
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: error.message || "Failed to update credits",
+        });
+        return;
+      }
+
+      const newResponse = {
+        id: String(index),
+        content: result.content,
+        status: "generated",
+        usage: result.usage,
+      };
+
+      setAiResponses((prev) => {
+        const newResponses = {
+          ...prev,
+          [index]: newResponse,
+        };
+        // Update context if we have a campaignId
+        if (campaignId) {
+          setResponsesForCampaign(campaignId, newResponses);
+        }
+        return newResponses;
+      });
+    } catch (error) {
+      console.error("Error generating response:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: `Failed to generate AI response for item ${index + 1}`,
+      });
+    } finally {
+      setLoading((prev) => ({ ...prev, [index]: false }));
+    }
+  };
+
+  const handleGenerateSelectedResponses = async () => {
+    const selectedIndexes = Object.entries(selectedResponses)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([index]) => parseInt(index));
+
+    if (selectedIndexes.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No responses selected",
+        description: "Please select at least one response to generate.",
+      });
+      return;
+    }
+
     if (!user?.id) {
       toast({
         variant: "destructive",
@@ -140,46 +166,10 @@ const ResponsePanel = ({
       return;
     }
 
-    await generateResponseForIndex(
-      index,
-      responses[index],
-      setLoading,
-      setAiResponses,
-      toast,
-      user.id,
-      companyName,
-      companyDetails,
-      signature,
-      responseSize,
-      campaignType,
-    );
-  };
-
-  const handleEditStart = (id: string, content: string) => {
-    setEditMode((prev) => ({ ...prev, [id]: true }));
-    setEditContent((prev) => ({ ...prev, [id]: content }));
-  };
-
-  const handleEditSave = (id: string) => {
-    onEdit(id, editContent[id]);
-    setEditMode((prev) => ({ ...prev, [id]: false }));
-  };
-
-  const handleGenerateAllResponses = async () => {
-    if (!user?.id) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: "You must be logged in to generate responses",
-      });
-      return;
-    }
-
-    // Calculate total tokens needed (rough estimate)
     const estimatedTokensPerResponse = 1000;
-    const totalTokensNeeded = responses.length * estimatedTokensPerResponse;
+    const totalTokensNeeded =
+      selectedIndexes.length * estimatedTokensPerResponse;
 
-    // Check if user has enough credits
     try {
       const { data: userData, error: creditsError } = await supabase
         .from("users")
@@ -193,31 +183,19 @@ const ResponsePanel = ({
         toast({
           variant: "destructive",
           title: "Insufficient credits",
-          description: `You need at least ${totalTokensNeeded} credits to generate all responses.`,
+          description: `You need at least ${totalTokensNeeded} credits to generate ${selectedIndexes.length} responses.`,
         });
         return;
       }
 
-      // Generate responses one by one with a small delay to avoid rate limiting
-      for (let i = 0; i < responses.length; i++) {
-        if (!aiResponses[i]?.content) {
-          await generateResponseForIndex(
-            i,
-            responses[i],
-            setLoading,
-            setAiResponses,
-            toast,
-            user.id,
-            companyName,
-            companyDetails,
-            signature,
-            responseSize,
-            campaignType,
-          );
-          // Add a small delay between requests
+      for (const index of selectedIndexes) {
+        if (!aiResponses[index]?.content) {
+          await generateResponseForIndex(index, responses[index]);
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
+
+      setSelectedResponses({});
     } catch (error: any) {
       toast({
         variant: "destructive",
@@ -227,26 +205,64 @@ const ResponsePanel = ({
     }
   };
 
+  const handleEditStart = (id: string, content: string) => {
+    setEditMode((prev) => ({ ...prev, [id]: true }));
+    setEditContent((prev) => ({ ...prev, [id]: content }));
+  };
+
+  const handleEditSave = (id: string) => {
+    onEdit(id, editContent[id]);
+    setEditMode((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const handleSelectAll = () => {
+    const newSelections: SelectedResponses = {};
+    responses.forEach((_, index) => {
+      if (!aiResponses[index]?.content) {
+        newSelections[index] = true;
+      }
+    });
+    setSelectedResponses(newSelections);
+  };
+
   return (
     <div className="w-full h-full min-h-[600px] bg-background p-6">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold">Response Management</h2>
         {responses.length > 0 && (
-          <Button
-            onClick={handleGenerateAllResponses}
-            variant="default"
-            className="flex items-center gap-2"
-          >
-            <Loader2
-              className={cn(
-                "h-4 w-4",
-                Object.values(loading).some((l) => l)
-                  ? "animate-spin"
-                  : "hidden",
+          <div className="flex items-center gap-4">
+            <Button
+              onClick={handleSelectAll}
+              variant="outline"
+              className="flex items-center gap-2"
+              disabled={responses.every(
+                (_, index) => !!aiResponses[index]?.content,
               )}
-            />
-            Generate All Responses
-          </Button>
+            >
+              Select All
+            </Button>
+            <div className="text-sm text-muted-foreground">
+              {Object.values(selectedResponses).filter(Boolean).length} selected
+            </div>
+            <Button
+              onClick={handleGenerateSelectedResponses}
+              variant="default"
+              className="flex items-center gap-2"
+              disabled={
+                Object.values(selectedResponses).filter(Boolean).length === 0
+              }
+            >
+              <Loader2
+                className={cn(
+                  "h-4 w-4",
+                  Object.values(loading).some((l) => l)
+                    ? "animate-spin"
+                    : "hidden",
+                )}
+              />
+              Generate Selected Responses
+            </Button>
+          </div>
         )}
       </div>
 
@@ -254,6 +270,21 @@ const ResponsePanel = ({
         <div className="space-y-6">
           {responses.map((response, index) => (
             <Card key={index} className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-sm text-muted-foreground">
+                  Response #{index + 1}
+                </div>
+                <Checkbox
+                  checked={selectedResponses[index] || false}
+                  onCheckedChange={(checked) => {
+                    setSelectedResponses((prev) => ({
+                      ...prev,
+                      [index]: checked === true,
+                    }));
+                  }}
+                  disabled={!!aiResponses[index]?.content}
+                />
+              </div>
               <Tabs defaultValue="original" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 mb-4">
                   <TabsTrigger value="original">Original Response</TabsTrigger>
@@ -313,12 +344,6 @@ const ResponsePanel = ({
                             <p className="text-muted-foreground">
                               No AI response generated yet
                             </p>
-                            <Button
-                              onClick={() => handleGenerateResponse(index)}
-                              variant="outline"
-                            >
-                              Generate AI Response
-                            </Button>
                           </div>
                         )}
                       </div>
