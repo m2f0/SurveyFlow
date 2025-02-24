@@ -156,12 +156,14 @@ const CSVUploader = ({
 
       // Update user credits
       try {
-        // Only reduce credits by the number of actual data rows (excluding header)
-        const creditsToReduce = data.length;
-        const remainingCredits = await updateUserCredits(
-          user.id,
-          creditsToReduce,
-        );
+        // Don't deduct credits here - they will be deducted per response generation
+        const { data: userData } = await supabase
+          .from("users")
+          .select("credits")
+          .eq("id", user.id)
+          .single();
+
+        const remainingCredits = userData?.credits || 0;
 
         setTimeout(() => {
           setIsUploading(false);

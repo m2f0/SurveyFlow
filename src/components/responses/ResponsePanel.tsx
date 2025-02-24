@@ -9,6 +9,7 @@ import { generateAIResponse, TokenUsage } from "@/lib/openai";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { updateUserCredits } from "@/lib/supabase/users";
+import { supabase } from "@/lib/supabase";
 
 interface CSVData {
   [key: string]: string;
@@ -60,6 +61,25 @@ const generateResponseForIndex = async (
 
     // Deduct tokens from user credits
     try {
+      // Check if user has enough credits before generating
+      const { data: userData, error: creditsError } = await supabase
+        .from("users")
+        .select("credits")
+        .eq("id", userId)
+        .single();
+
+      if (creditsError) throw creditsError;
+
+      // Estimate token usage (approximate - adjust these numbers based on your needs)
+      const estimatedTokens = 1000; // Base estimate per response
+
+      if (!userData || userData.credits < estimatedTokens) {
+        throw new Error(
+          `Insufficient credits. You need at least ${estimatedTokens} credits to generate a response.`,
+        );
+      }
+
+      // Deduct credits after successful generation
       await updateUserCredits(userId, result.usage.total_tokens);
     } catch (error: any) {
       toast({
