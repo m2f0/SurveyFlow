@@ -51,7 +51,7 @@ Their survey responses:\n${Object.entries(surveyData)
 ${companyDetails ? `Important - Include these company details naturally in the response:\n${companyDetails}\n\n` : ""}`;
 
     const response = await openai.chat.completions.create({
-      model: "gpt-4",
+      model: "gpt-3.5-turbo",
       messages: [
         {
           role: "system",
