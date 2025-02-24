@@ -76,13 +76,14 @@ const ResponsePanel = ({
   const generateResponseForIndex = async (index: number, response: CSVData) => {
     setLoading((prev) => ({ ...prev, [index]: true }));
     try {
+      console.log("Generating response with campaign type:", campaignType);
       const result = await generateAIResponse(
         response,
         companyName,
         companyDetails,
         signature,
         responseSize,
-        campaignType,
+        campaignType || "general", // Ensure we pass the campaign type
       );
 
       // Check credits and deduct tokens
@@ -227,43 +228,52 @@ const ResponsePanel = ({
 
   return (
     <div className="w-full h-full min-h-[600px] bg-background p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Response Management</h2>
-        {responses.length > 0 && (
-          <div className="flex items-center gap-4">
-            <Button
-              onClick={handleSelectAll}
-              variant="outline"
-              className="flex items-center gap-2"
-              disabled={responses.every(
-                (_, index) => !!aiResponses[index]?.content,
-              )}
-            >
-              Select All
-            </Button>
-            <div className="text-sm text-muted-foreground">
-              {Object.values(selectedResponses).filter(Boolean).length} selected
-            </div>
-            <Button
-              onClick={handleGenerateSelectedResponses}
-              variant="default"
-              className="flex items-center gap-2"
-              disabled={
-                Object.values(selectedResponses).filter(Boolean).length === 0
-              }
-            >
-              <Loader2
-                className={cn(
-                  "h-4 w-4",
-                  Object.values(loading).some((l) => l)
-                    ? "animate-spin"
-                    : "hidden",
-                )}
-              />
-              Generate Selected Responses
-            </Button>
+      <div className="space-y-4 mb-6">
+        {campaignType && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-2 rounded-md">
+            <span className="font-medium">Selected Campaign Theme:</span>
+            <span className="capitalize">{campaignType}</span>
           </div>
         )}
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Response Management</h2>
+          {responses.length > 0 && (
+            <div className="flex items-center gap-4">
+              <Button
+                onClick={handleSelectAll}
+                variant="outline"
+                className="flex items-center gap-2"
+                disabled={responses.every(
+                  (_, index) => !!aiResponses[index]?.content,
+                )}
+              >
+                Select All
+              </Button>
+              <div className="text-sm text-muted-foreground">
+                {Object.values(selectedResponses).filter(Boolean).length}{" "}
+                selected
+              </div>
+              <Button
+                onClick={handleGenerateSelectedResponses}
+                variant="default"
+                className="flex items-center gap-2"
+                disabled={
+                  Object.values(selectedResponses).filter(Boolean).length === 0
+                }
+              >
+                <Loader2
+                  className={cn(
+                    "h-4 w-4",
+                    Object.values(loading).some((l) => l)
+                      ? "animate-spin"
+                      : "hidden",
+                  )}
+                />
+                Generate Selected Responses
+              </Button>
+            </div>
+          )}
+        </div>
       </div>
 
       <ScrollArea className="h-[calc(100vh-200px)]">
