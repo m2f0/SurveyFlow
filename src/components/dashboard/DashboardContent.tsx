@@ -7,6 +7,7 @@ import CampaignManager from "../email/CampaignManager";
 import AnalyticsDashboard from "../analytics/AnalyticsDashboard";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Card } from "../ui/card";
+import { AnimatedBackground } from "../layout/AnimatedBackground";
 
 interface CSVData {
   [key: string]: string;
@@ -63,31 +64,32 @@ const DashboardContent = ({
   };
 
   return (
-    <div className="w-full min-h-screen bg-background p-4 lg:p-6">
-      <Card className="w-full h-full bg-card">
+    <div className="w-full min-h-screen bg-background p-4 lg:p-6 relative overflow-hidden">
+      <AnimatedBackground />
+      <Card className="w-full h-full bg-card/50 backdrop-blur-sm relative z-10">
         <Tabs value={activeTab} className="w-full" onValueChange={onTabChange}>
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2 bg-background/30 backdrop-blur-sm">
             <TabsTrigger
               value="campaigns"
-              className="bg-[#0F172A] text-white hover:text-white hover:bg-[#0F172A]/90 data-[state=active]:bg-[#0F172A] data-[state=active]:text-white"
+              className="bg-[#0F172A]/80 text-white hover:text-white hover:bg-[#0F172A]/90 data-[state=active]:bg-[#0F172A]/95 data-[state=active]:text-white backdrop-blur-sm"
             >
               Campaigns
             </TabsTrigger>
             <TabsTrigger
               value="upload"
-              className="data-[state=active]:bg-accent"
+              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
             >
               CSV Upload
             </TabsTrigger>
             <TabsTrigger
               value="responses"
-              className="data-[state=active]:bg-accent"
+              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
             >
               Responses
             </TabsTrigger>
             <TabsTrigger
               value="analytics"
-              className="data-[state=active]:bg-accent"
+              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
             >
               Analytics
             </TabsTrigger>

@@ -12,6 +12,10 @@ import {
   ChevronLeft,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { supabase } from "@/lib/supabase";
+import { LogOut } from "lucide-react";
+import { useToast } from "@/components/ui/use-toast";
+import { AnimatedBackground } from "./AnimatedBackground";
 
 interface TabChangeHandler {
   (tab: string): void;
@@ -39,32 +43,10 @@ const Sidebar = ({
   onToggle = () => {},
   isVisible = true,
 }: SidebarProps) => {
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("campaigns");
 
-  // Animated background pattern
-  const Pattern = () => (
-    <div className="absolute inset-0 overflow-hidden opacity-10 flex">
-      {[...Array(20)].map((_, i) => (
-        <motion.div
-          key={i}
-          className="absolute w-2 h-2 bg-primary rounded-full"
-          initial={{
-            x: Math.random() * 280,
-            y: Math.random() * 982,
-          }}
-          animate={{
-            x: Math.random() * 280,
-            y: Math.random() * 982,
-            transition: {
-              duration: 20,
-              repeat: Infinity,
-              repeatType: "reverse",
-            },
-          }}
-        />
-      ))}
-    </div>
-  );
+  // State for active tab
 
   return (
     <aside
@@ -75,7 +57,7 @@ const Sidebar = ({
         className,
       )}
     >
-      <Pattern />
+      <AnimatedBackground />
 
       <div className="flex flex-col h-full">
         {/* Header */}
@@ -122,9 +104,28 @@ const Sidebar = ({
 
         {/* Footer */}
         <div className="p-4 border-t flex items-center justify-between">
-          <Button variant="ghost" className="justify-start px-4 flex-1">
-            <Menu className="h-5 w-5 mr-2" />
-            <span>Menu</span>
+          <Button
+            variant="ghost"
+            type="button"
+            className="h-9 px-3 rounded-md flex items-center gap-2"
+            onClick={async () => {
+              try {
+                await supabase.auth.signOut();
+                toast({
+                  title: "Signed out successfully",
+                  description: "You have been logged out of your account.",
+                });
+              } catch (error) {
+                toast({
+                  variant: "destructive",
+                  title: "Error signing out",
+                  description: "Please try again.",
+                });
+              }
+            }}
+          >
+            <LogOut className="h-[1.2rem] w-[1.2rem]" />
+            <span className="text-sm">Sign out</span>
           </Button>
           <ThemeToggle />
         </div>
