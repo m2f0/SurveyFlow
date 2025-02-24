@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { motion } from "framer-motion";
 import {
-  Home,
   FileText,
   Mail,
   BarChart2,
@@ -12,6 +11,7 @@ import {
   ChevronLeft,
   User,
   LogOut,
+  Upload,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { supabase } from "@/lib/supabase";
