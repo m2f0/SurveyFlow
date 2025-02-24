@@ -5,8 +5,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ArrowLeftRight, Edit2, Save, ThumbsUp, Loader2 } from "lucide-react";
-import { generateAIResponse } from "@/lib/openai";
+import { generateAIResponse, TokenUsage } from "@/lib/openai";
 import { useToast } from "@/components/ui/use-toast";
+import { useAuth } from "@/lib/hooks/useAuth";
+import { updateUserCredits } from "@/lib/supabase/users";
 
 interface CSVData {
   [key: string]: string;
@@ -27,6 +29,7 @@ interface AIResponse {
   id: string;
   content: string;
   status: "pending" | "generated" | "approved";
+  usage: TokenUsage;
 }
 
 const generateResponseForIndex = async (
@@ -37,26 +40,42 @@ const generateResponseForIndex = async (
     React.SetStateAction<Record<string, AIResponse>>
   >,
   toast: any,
+  userId: string,
   companyName?: string,
   companyDetails?: string,
   signature?: string,
   responseSize?: "small" | "medium" | "large",
+  campaignType?: string,
 ) => {
   setLoading((prev) => ({ ...prev, [index]: true }));
   try {
-    const aiResponse = await generateAIResponse(
+    const result = await generateAIResponse(
       response,
       companyName,
       companyDetails,
       signature,
       responseSize,
+      campaignType,
     );
+
+    // Deduct tokens from user credits
+    try {
+      await updateUserCredits(userId, result.usage.total_tokens);
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to update credits",
+      });
+      return;
+    }
     setAiResponses((prev) => ({
       ...prev,
       [index]: {
         id: String(index),
-        content: aiResponse,
+        content: result.content,
         status: "generated",
+        usage: result.usage,
       },
     }));
   } catch (error) {
@@ -88,6 +107,7 @@ const ResponsePanel = ({
   );
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // Effect to generate AI responses automatically
   useEffect(() => {
@@ -95,12 +115,22 @@ const ResponsePanel = ({
       // Generate responses one by one with a small delay to avoid rate limiting
       for (let i = 0; i < responses.length; i++) {
         if (!aiResponses[i]) {
+          if (!user?.id) {
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description: "You must be logged in to generate responses",
+            });
+            return;
+          }
+
           await generateResponseForIndex(
             i,
             responses[i],
             setLoading,
             setAiResponses,
             toast,
+            user.id,
             companyName,
             companyDetails,
             signature,
@@ -113,10 +143,20 @@ const ResponsePanel = ({
       }
     };
 
-    if (responses.length > 0) {
+    if (responses.length > 0 && user?.id) {
       generateResponses();
     }
-  }, [responses.length, toast]);
+  }, [
+    responses.length,
+    toast,
+    user?.id,
+    companyName,
+    companyDetails,
+    signature,
+    responseSize,
+    campaignType,
+    aiResponses,
+  ]);
 
   const handleEditStart = (id: string, content: string) => {
     setEditMode((prev) => ({ ...prev, [id]: true }));
@@ -240,6 +280,20 @@ const ResponsePanel = ({
                       : aiResponses[index]?.status || "Pending"}
                   </span>
                 </div>
+                {aiResponses[index]?.usage && (
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                    <span>
+                      Input: {aiResponses[index].usage.prompt_tokens} tokens
+                    </span>
+                    <span>
+                      Output: {aiResponses[index].usage.completion_tokens}{" "}
+                      tokens
+                    </span>
+                    <span>
+                      Total: {aiResponses[index].usage.total_tokens} tokens
+                    </span>
+                  </div>
+                )}
               </div>
             </Card>
           ))}

@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
 
 function App() {
-  const { user, loading } = useAuth();
+  const { user, loading, initialized } = useAuth();
   const tempoRoutes =
     import.meta.env.VITE_TEMPO === "true" ? useRoutes(routes) : null;
 
@@ -23,7 +23,7 @@ function App() {
   }, [user]);
 
   // Show loading state
-  if (loading) {
+  if (loading || !initialized) {
     return (
       <div className="flex items-center justify-center w-full h-screen bg-background relative overflow-hidden">
         <AnimatedBackground />
