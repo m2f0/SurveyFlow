@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +26,13 @@ export default function AuthForm() {
     setLoading(true);
 
     try {
-      if (mode === "signup") {
+      if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: formData.email,
+          password: formData.password,
+        });
+        if (error) throw error;
+      } else if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -55,12 +61,6 @@ export default function AuthForm() {
           title: "Account created successfully!",
           description: "You can now sign in with your credentials.",
         });
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
-        if (error) throw error;
       }
     } catch (error: any) {
       toast({
@@ -72,6 +72,41 @@ export default function AuthForm() {
       setLoading(false);
     }
   };
+
+  const handleSignUpClick = () => {
+    // Get the current URL of your application
+    const currentUrl = window.location.origin;
+    // Create the success and cancel URLs
+    const successUrl = `${currentUrl}?checkout=success`;
+    const cancelUrl = `${currentUrl}?checkout=canceled`;
+
+    // Append the success_url and cancel_url as query parameters to the Stripe checkout URL
+    const stripeUrl = new URL("https://buy.stripe.com/test_8wM4gQdCW04z9fa3cc");
+    stripeUrl.searchParams.append("success_url", successUrl);
+    stripeUrl.searchParams.append("cancel_url", cancelUrl);
+
+    // Redirect to Stripe checkout
+    window.location.href = stripeUrl.toString();
+  };
+
+  // Check for success or cancel parameters in URL
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("checkout") === "success") {
+      setMode("signup");
+      toast({
+        title: "Payment successful!",
+        description: "Please complete your registration.",
+      });
+    } else if (params.get("checkout") === "canceled") {
+      setMode("signin");
+      toast({
+        variant: "destructive",
+        title: "Payment canceled",
+        description: "Your payment was not completed.",
+      });
+    }
+  }, []);
 
   return (
     <Card className="w-full max-w-md p-6 space-y-6 bg-card relative z-10">
@@ -151,7 +186,9 @@ export default function AuthForm() {
       <div className="text-center">
         <Button
           variant="link"
-          onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+          onClick={
+            mode === "signin" ? handleSignUpClick : () => setMode("signin")
+          }
         >
           {mode === "signin"
             ? "Don't have an account? Sign up"
