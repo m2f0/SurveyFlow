@@ -5,6 +5,17 @@ const openai = new OpenAI({
   dangerouslyAllowBrowser: true,
 });
 
+export interface TokenUsage {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+}
+
+export interface AIResponseResult {
+  content: string;
+  usage: TokenUsage;
+}
+
 export async function generateAIResponse(
   surveyData: Record<string, string>,
   companyName?: string,
@@ -12,7 +23,7 @@ export async function generateAIResponse(
   signature?: string,
   responseSize?: "small" | "medium" | "large",
   campaignType?: string,
-) {
+): Promise<AIResponseResult> {
   try {
     const sizeInstructions = {
       small: "Write a brief, friendly email response in 2-3 sentences",
@@ -60,9 +71,25 @@ ${companyDetails ? `Important - Include these company details naturally in the r
     const content =
       response.choices[0]?.message?.content || "Unable to generate response";
 
-    return `${content}\n\n${signature || `Warm regards,\n${companyName || "[Your Company Name]"}}`}`;
+    const finalContent = `${content}\n\n${signature || `Warm regards,\n${companyName || "[Your Company Name]"}}`}`;
+
+    return {
+      content: finalContent,
+      usage: {
+        prompt_tokens: response.usage?.prompt_tokens || 0,
+        completion_tokens: response.usage?.completion_tokens || 0,
+        total_tokens: response.usage?.total_tokens || 0,
+      },
+    };
   } catch (error) {
     console.error("Error generating AI response:", error);
-    return "Error generating AI response. Please try again.";
+    return {
+      content: "Error generating AI response. Please try again.",
+      usage: {
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0,
+      },
+    };
   }
 }

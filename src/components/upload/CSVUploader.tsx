@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Upload } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/hooks/useAuth";
 
 interface CSVData {
   [key: string]: string;
@@ -14,6 +16,30 @@ interface CSVUploaderProps {
   maxSize?: number;
 }
 
+async function updateUserCredits(userId: string, creditsToReduce: number) {
+  // First get current credits
+  const { data: userData, error: fetchError } = await supabase
+    .from("users")
+    .select("credits")
+    .eq("id", userId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!userData) throw new Error("User not found");
+
+  // Then update with new value
+  const newCredits = userData.credits - creditsToReduce;
+  const { data, error } = await supabase
+    .from("users")
+    .update({ credits: newCredits })
+    .eq("id", userId)
+    .select("credits")
+    .single();
+
+  if (error) throw error;
+  return data?.credits;
+}
+
 const CSVUploader = ({
   onDataParsed = () => {},
   maxSize = 5,
@@ -22,6 +48,7 @@ const CSVUploader = ({
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -34,7 +61,7 @@ const CSVUploader = ({
   };
 
   const parseCSV = async (text: string) => {
-    const lines = text.split("\n");
+    const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
     const headers = lines[0].split(",").map((header) => header.trim());
     const data: CSVData[] = [];
 
@@ -59,6 +86,46 @@ const CSVUploader = ({
   };
 
   const processFile = async (file: File) => {
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to upload files",
+      });
+      return;
+    }
+
+    // Check if user has enough credits
+    const { data: userData, error: creditsError } = await supabase
+      .from("users")
+      .select("credits")
+      .eq("id", user.id)
+      .single();
+
+    if (creditsError) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Could not check credits balance",
+      });
+      return;
+    }
+
+    // Count lines in file to check credits
+    const text = await file.text();
+    // Split by newline and filter out empty lines
+    const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
+    // Subtract 1 for header row
+    const requiredCredits = Math.max(0, lines.length - 1);
+
+    if (userData.credits < requiredCredits) {
+      toast({
+        variant: "destructive",
+        title: "Insufficient credits",
+        description: `You need ${requiredCredits} credits but only have ${userData.credits}`,
+      });
+      return;
+    }
     if (!file.name.toLowerCase().endsWith(".csv")) {
       toast({
         variant: "destructive",
@@ -81,22 +148,40 @@ const CSVUploader = ({
       setIsUploading(true);
       setUploadProgress(0);
 
-      const text = await file.text();
+      // File already read above for credit check
       const data = await parseCSV(text);
 
       // Complete the progress
       setUploadProgress(100);
 
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploadProgress(0);
-        onDataParsed(data);
+      // Update user credits
+      try {
+        // Don't deduct credits here - they will be deducted per response generation
+        const { data: userData } = await supabase
+          .from("users")
+          .select("credits")
+          .eq("id", user.id)
+          .single();
 
+        const remainingCredits = userData?.credits || 0;
+
+        setTimeout(() => {
+          setIsUploading(false);
+          setUploadProgress(0);
+          onDataParsed(data);
+
+          toast({
+            title: "Success",
+            description: `Successfully processed ${data.length} records. Remaining credits: ${remainingCredits}`,
+          });
+        }, 500);
+      } catch (error: any) {
         toast({
-          title: "Success",
-          description: `Successfully processed ${data.length} records`,
+          variant: "destructive",
+          title: "Error updating credits",
+          description: error.message,
         });
-      }, 500);
+      }
     } catch (error) {
       setIsUploading(false);
       setUploadProgress(0);
