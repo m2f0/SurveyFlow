@@ -10,10 +10,11 @@ import {
   BarChart2,
   Menu,
   ChevronLeft,
+  User,
+  LogOut,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { supabase } from "@/lib/supabase";
-import { LogOut } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { AnimatedBackground } from "./AnimatedBackground";
 
@@ -45,8 +46,6 @@ const Sidebar = ({
 }: SidebarProps) => {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("campaigns");
-
-  // State for active tab
 
   return (
     <aside
@@ -103,27 +102,42 @@ const Sidebar = ({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            type="button"
-            className="h-9 w-9 rounded-md p-0"
-            onClick={async () => {
-              const { error } = await supabase.auth.signOut();
-              if (error) {
-                toast({
-                  variant: "destructive",
-                  title: "Error signing out",
-                  description: error.message,
-                });
-              }
-            }}
-          >
-            <LogOut className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all" />
-            <span className="sr-only">Sign out</span>
-          </Button>
-          <ThemeToggle />
+        <div className="p-4 border-t">
+          <div className="flex items-center justify-between">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="h-9 w-9 rounded-md p-0"
+              onClick={() => {
+                setActiveTab("profile");
+                onTabChange("profile");
+              }}
+            >
+              <User className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all" />
+              <span className="sr-only">Profile</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              type="button"
+              className="h-9 w-9 rounded-md p-0"
+              onClick={async () => {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                  toast({
+                    variant: "destructive",
+                    title: "Error signing out",
+                    description: error.message,
+                  });
+                }
+              }}
+            >
+              <LogOut className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all" />
+              <span className="sr-only">Sign out</span>
+            </Button>
+          </div>
         </div>
       </div>
     </aside>

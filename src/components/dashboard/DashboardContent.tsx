@@ -5,6 +5,7 @@ import CSVUploader from "../upload/CSVUploader";
 import ResponsePanel from "../responses/ResponsePanel.tsx";
 import CampaignManager from "../email/CampaignManager";
 import AnalyticsDashboard from "../analytics/AnalyticsDashboard";
+import ProfileManager from "../profile/ProfileManager";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import { Card } from "../ui/card";
 import { AnimatedBackground } from "../layout/AnimatedBackground";
@@ -68,7 +69,7 @@ const DashboardContent = ({
       <AnimatedBackground />
       <Card className="w-full h-full bg-card/50 backdrop-blur-sm relative z-10">
         <Tabs value={activeTab} className="w-full" onValueChange={onTabChange}>
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2 bg-background/30 backdrop-blur-sm">
+          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 gap-2 bg-background/30 backdrop-blur-sm">
             <TabsTrigger
               value="campaigns"
               className="bg-[#0F172A]/80 text-white hover:text-white hover:bg-[#0F172A]/90 data-[state=active]:bg-[#0F172A]/95 data-[state=active]:text-white backdrop-blur-sm"
@@ -92,6 +93,12 @@ const DashboardContent = ({
               className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
             >
               Analytics
+            </TabsTrigger>
+            <TabsTrigger
+              value="profile"
+              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
+            >
+              Profile
             </TabsTrigger>
           </TabsList>
 
@@ -126,6 +133,10 @@ const DashboardContent = ({
                 responseData={analyticsData.responseData}
                 emailStats={analyticsData.emailStats}
               />
+            </TabsContent>
+
+            <TabsContent value="profile" className="m-0">
+              <ProfileManager />
             </TabsContent>
           </div>
         </Tabs>
