@@ -106,26 +106,22 @@ const Sidebar = ({
         <div className="p-4 border-t flex items-center justify-between">
           <Button
             variant="ghost"
+            size="icon"
             type="button"
-            className="h-9 px-3 rounded-md flex items-center gap-2"
+            className="h-9 w-9 rounded-md p-0"
             onClick={async () => {
-              try {
-                await supabase.auth.signOut();
-                toast({
-                  title: "Signed out successfully",
-                  description: "You have been logged out of your account.",
-                });
-              } catch (error) {
+              const { error } = await supabase.auth.signOut();
+              if (error) {
                 toast({
                   variant: "destructive",
                   title: "Error signing out",
-                  description: "Please try again.",
+                  description: error.message,
                 });
               }
             }}
           >
-            <LogOut className="h-[1.2rem] w-[1.2rem]" />
-            <span className="text-sm">Sign out</span>
+            <LogOut className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all" />
+            <span className="sr-only">Sign out</span>
           </Button>
           <ThemeToggle />
         </div>
