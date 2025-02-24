@@ -13,6 +13,7 @@ interface UserProfile {
   name: string;
   phone: string;
   email: string;
+  credits?: number;
 }
 
 export default function ProfileManager() {
@@ -26,14 +27,75 @@ export default function ProfileManager() {
   });
 
   useEffect(() => {
-    if (user?.user_metadata) {
-      setProfile({
-        name: user.user_metadata.name || "",
-        phone: user.user_metadata.phone || "",
-        email: user.email || "",
-      });
-    }
-  }, [user]);
+    const fetchUserData = async () => {
+      if (!user?.id) return;
+
+      try {
+        // Try to fetch existing user
+        let { data: userData, error: fetchError } = await supabase
+          .from("users")
+          .select("credits")
+          .eq("id", user.id)
+          .single();
+
+        // If user doesn't exist, create them
+        if (fetchError?.code === "PGRST116") {
+          const { data: newUser, error: createError } = await supabase
+            .from("users")
+            .insert([
+              {
+                id: user.id,
+                email: user.email,
+                name: user.user_metadata.name || "Anonymous User", // Default name since it's required
+                phone: user.user_metadata.phone,
+                credits: 1000, // Set initial credits when creating user,
+              },
+            ])
+            .select("credits")
+            .single();
+
+          if (createError) {
+            console.error("Error creating user:", createError);
+            toast({
+              variant: "destructive",
+              title: "Error",
+              description:
+                "Could not create user profile: " + createError.message,
+            });
+            return;
+          }
+
+          userData = newUser;
+        } else if (fetchError) {
+          console.error("Error fetching user:", fetchError);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not fetch user data: " + fetchError.message,
+          });
+          return;
+        }
+
+        console.log("User data:", userData);
+
+        setProfile({
+          name: user.user_metadata.name || "",
+          phone: user.user_metadata.phone || "",
+          email: user.email || "",
+          credits: userData?.credits ?? 1000,
+        });
+      } catch (error: any) {
+        console.error("Unexpected error:", error);
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: "An unexpected error occurred: " + error.message,
+        });
+      }
+    };
+
+    fetchUserData();
+  }, [user, toast]);
 
   const handleUpdateProfile = async () => {
     setLoading(true);
@@ -105,6 +167,18 @@ export default function ProfileManager() {
               <p className="text-sm text-muted-foreground">
                 Email cannot be changed
               </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Available Credits</Label>
+              <div className="flex items-center space-x-2 bg-muted p-3 rounded-md">
+                <div className="text-2xl font-bold">
+                  {profile.credits?.toLocaleString()}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  credits remaining
+                </div>
+              </div>
             </div>
 
             <Button
