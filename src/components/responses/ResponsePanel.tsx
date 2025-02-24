@@ -10,6 +10,7 @@ import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { updateUserCredits } from "@/lib/supabase/users";
 import { supabase } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 
 interface CSVData {
   [key: string]: string;
@@ -129,21 +130,77 @@ const ResponsePanel = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Effect to generate AI responses automatically
-  useEffect(() => {
-    const generateResponses = async () => {
+  const handleGenerateResponse = async (index: number) => {
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to generate responses",
+      });
+      return;
+    }
+
+    await generateResponseForIndex(
+      index,
+      responses[index],
+      setLoading,
+      setAiResponses,
+      toast,
+      user.id,
+      companyName,
+      companyDetails,
+      signature,
+      responseSize,
+      campaignType,
+    );
+  };
+
+  const handleEditStart = (id: string, content: string) => {
+    setEditMode((prev) => ({ ...prev, [id]: true }));
+    setEditContent((prev) => ({ ...prev, [id]: content }));
+  };
+
+  const handleEditSave = (id: string) => {
+    onEdit(id, editContent[id]);
+    setEditMode((prev) => ({ ...prev, [id]: false }));
+  };
+
+  const handleGenerateAllResponses = async () => {
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to generate responses",
+      });
+      return;
+    }
+
+    // Calculate total tokens needed (rough estimate)
+    const estimatedTokensPerResponse = 1000;
+    const totalTokensNeeded = responses.length * estimatedTokensPerResponse;
+
+    // Check if user has enough credits
+    try {
+      const { data: userData, error: creditsError } = await supabase
+        .from("users")
+        .select("credits")
+        .eq("id", user.id)
+        .single();
+
+      if (creditsError) throw creditsError;
+
+      if (!userData || userData.credits < totalTokensNeeded) {
+        toast({
+          variant: "destructive",
+          title: "Insufficient credits",
+          description: `You need at least ${totalTokensNeeded} credits to generate all responses.`,
+        });
+        return;
+      }
+
       // Generate responses one by one with a small delay to avoid rate limiting
       for (let i = 0; i < responses.length; i++) {
-        if (!aiResponses[i]) {
-          if (!user?.id) {
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "You must be logged in to generate responses",
-            });
-            return;
-          }
-
+        if (!aiResponses[i]?.content) {
           await generateResponseForIndex(
             i,
             responses[i],
@@ -161,36 +218,37 @@ const ResponsePanel = ({
           await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
-    };
-
-    if (responses.length > 0 && user?.id) {
-      generateResponses();
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to generate responses",
+      });
     }
-  }, [
-    responses.length,
-    toast,
-    user?.id,
-    companyName,
-    companyDetails,
-    signature,
-    responseSize,
-    campaignType,
-    aiResponses,
-  ]);
-
-  const handleEditStart = (id: string, content: string) => {
-    setEditMode((prev) => ({ ...prev, [id]: true }));
-    setEditContent((prev) => ({ ...prev, [id]: content }));
-  };
-
-  const handleEditSave = (id: string) => {
-    onEdit(id, editContent[id]);
-    setEditMode((prev) => ({ ...prev, [id]: false }));
   };
 
   return (
     <div className="w-full h-full min-h-[600px] bg-background p-6">
-      <h2 className="text-2xl font-bold mb-6">Response Management</h2>
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold">Response Management</h2>
+        {responses.length > 0 && (
+          <Button
+            onClick={handleGenerateAllResponses}
+            variant="default"
+            className="flex items-center gap-2"
+          >
+            <Loader2
+              className={cn(
+                "h-4 w-4",
+                Object.values(loading).some((l) => l)
+                  ? "animate-spin"
+                  : "hidden",
+              )}
+            />
+            Generate All Responses
+          </Button>
+        )}
+      </div>
 
       <ScrollArea className="h-[calc(100vh-200px)]">
         <div className="space-y-6">
@@ -251,11 +309,16 @@ const ResponsePanel = ({
                             {aiResponses[index].content}
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            <span className="ml-2">
-                              Waiting to generate response...
-                            </span>
+                          <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                            <p className="text-muted-foreground">
+                              No AI response generated yet
+                            </p>
+                            <Button
+                              onClick={() => handleGenerateResponse(index)}
+                              variant="outline"
+                            >
+                              Generate AI Response
+                            </Button>
                           </div>
                         )}
                       </div>
