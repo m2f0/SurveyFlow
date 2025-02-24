@@ -129,54 +129,30 @@ const ResponsePanel = ({
   const { toast } = useToast();
   const { user } = useAuth();
 
-  // Effect to generate AI responses automatically
-  useEffect(() => {
-    const generateResponses = async () => {
-      // Generate responses one by one with a small delay to avoid rate limiting
-      for (let i = 0; i < responses.length; i++) {
-        if (!aiResponses[i]) {
-          if (!user?.id) {
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description: "You must be logged in to generate responses",
-            });
-            return;
-          }
-
-          await generateResponseForIndex(
-            i,
-            responses[i],
-            setLoading,
-            setAiResponses,
-            toast,
-            user.id,
-            companyName,
-            companyDetails,
-            signature,
-            responseSize,
-            campaignType,
-          );
-          // Add a small delay between requests
-          await new Promise((resolve) => setTimeout(resolve, 1000));
-        }
-      }
-    };
-
-    if (responses.length > 0 && user?.id) {
-      generateResponses();
+  const handleGenerateResponse = async (index: number) => {
+    if (!user?.id) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "You must be logged in to generate responses",
+      });
+      return;
     }
-  }, [
-    responses.length,
-    toast,
-    user?.id,
-    companyName,
-    companyDetails,
-    signature,
-    responseSize,
-    campaignType,
-    aiResponses,
-  ]);
+
+    await generateResponseForIndex(
+      index,
+      responses[index],
+      setLoading,
+      setAiResponses,
+      toast,
+      user.id,
+      companyName,
+      companyDetails,
+      signature,
+      responseSize,
+      campaignType,
+    );
+  };
 
   const handleEditStart = (id: string, content: string) => {
     setEditMode((prev) => ({ ...prev, [id]: true }));
@@ -251,11 +227,16 @@ const ResponsePanel = ({
                             {aiResponses[index].content}
                           </div>
                         ) : (
-                          <div className="flex items-center justify-center py-4">
-                            <Loader2 className="w-6 h-6 animate-spin" />
-                            <span className="ml-2">
-                              Waiting to generate response...
-                            </span>
+                          <div className="flex flex-col items-center justify-center py-4 space-y-4">
+                            <p className="text-muted-foreground">
+                              No AI response generated yet
+                            </p>
+                            <Button
+                              onClick={() => handleGenerateResponse(index)}
+                              variant="outline"
+                            >
+                              Generate AI Response
+                            </Button>
                           </div>
                         )}
                       </div>
