@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 
 export const AnimatedBackground = () => (
-  <div className="absolute inset-0 overflow-hidden opacity-10 flex">
+  <div className="absolute inset-0 overflow-hidden opacity-10 flex pointer-events-none">
     {[...Array(100)].map((_, i) => (
       <motion.div
         key={i}

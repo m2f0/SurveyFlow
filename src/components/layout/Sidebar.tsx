@@ -12,6 +12,7 @@ import {
   User,
   LogOut,
   Upload,
+  CreditCard,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { supabase } from "@/lib/supabase";
@@ -92,9 +93,11 @@ const Sidebar = ({
         className,
       )}
     >
-      <AnimatedBackground />
+      <div className="absolute inset-0 z-0">
+        <AnimatedBackground />
+      </div>
 
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full relative z-10">
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
           <div className="font-bold text-xl">Survey AI</div>
@@ -138,8 +141,33 @@ const Sidebar = ({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="p-4 border-t space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="p-4 border-t">
+          <Button
+            variant="default"
+            className="w-full flex items-center justify-center gap-2 mb-4"
+            onClick={() => {
+              // Get the current URL of your application
+              const currentUrl = window.location.origin;
+              // Create the success and cancel URLs
+              const successUrl = encodeURIComponent(
+                `${currentUrl}?payment=success`,
+              );
+              const cancelUrl = encodeURIComponent(
+                `${currentUrl}?payment=canceled`,
+              );
+
+              // Create the full Stripe URL with query parameters
+              const stripeUrl = `https://buy.stripe.com/test_7sIcNm42mdVpaje7st?success_url=${successUrl}&cancel_url=${cancelUrl}`;
+
+              // Redirect to Stripe checkout
+              window.location.href = stripeUrl;
+            }}
+          >
+            <CreditCard className="h-4 w-4" />
+            Buy Credits
+          </Button>
+
+          <div className="flex items-center justify-between mb-4">
             <ThemeToggle />
             <Button
               variant="ghost"

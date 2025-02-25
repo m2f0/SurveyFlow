@@ -39,3 +39,31 @@ export async function getUserCredits(userId: string) {
   if (error) throw error;
   return data?.credits;
 }
+
+export async function increaseUserCredits(
+  userId: string,
+  amount: number = 37000,
+) {
+  // First get current credits
+  const { data: userData, error: fetchError } = await supabase
+    .from("users")
+    .select("credits")
+    .eq("id", userId)
+    .single();
+
+  if (fetchError) throw fetchError;
+  if (!userData) throw new Error("User not found");
+
+  // Then update with new value
+  const newCredits = (userData.credits || 0) + amount;
+
+  const { data, error } = await supabase
+    .from("users")
+    .update({ credits: newCredits })
+    .eq("id", userId)
+    .select("credits")
+    .single();
+
+  if (error) throw error;
+  return data?.credits;
+}
