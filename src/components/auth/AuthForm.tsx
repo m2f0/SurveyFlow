@@ -98,19 +98,20 @@ export default function AuthForm() {
   const handleSignUpClick = () => {
     // Get the current URL of your application
     const currentUrl = window.location.origin;
+    console.log("Current URL:", currentUrl);
+
     // Create the success and cancel URLs with session ID
     const successUrl = encodeURIComponent(
       `${currentUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
     );
     const cancelUrl = encodeURIComponent(`${currentUrl}?checkout=canceled`);
 
-    // Create the full Stripe URL with query parameters
-    const stripeUrl = `https://buy.stripe.com/6oEcMTe4VeQffmw289?success_url=${successUrl}&cancel_url=${cancelUrl}`;
+    console.log("Success URL:", decodeURIComponent(successUrl));
+    console.log("Cancel URL:", decodeURIComponent(cancelUrl));
 
-    // Initialize Stripe
-    const stripe = Stripe(
-      "pk_live_51QpTUIRspk4arSJEBWRPBaj5G9jsoJd6dUveRCBHWNPHjhSIf1veapDjBMKXHzxGsay4LlUiC84ndHbTpDAKcoNs00OsKnSN3W",
-    );
+    // Use the test Stripe URL with query parameters
+    const stripeUrl = `https://buy.stripe.com/test_8wM4gQdCW04z9fa3cc?success_url=${successUrl}&cancel_url=${cancelUrl}`;
+    console.log("Full Stripe URL:", stripeUrl);
 
     // Redirect to Stripe checkout
     window.location.href = stripeUrl;
@@ -120,20 +121,26 @@ export default function AuthForm() {
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const sessionId = params.get("session_id");
+    console.log("URL Params:", Object.fromEntries(params.entries()));
+    console.log("Session ID:", sessionId);
 
     if (params.get("checkout") === "success" && sessionId) {
       // Check if session exists and is verified
       const checkSession = async () => {
         try {
+          console.log("Checking session:", sessionId);
           const { data: sessionData, error: sessionError } = await supabase
             .from("stripe_sessions")
             .select("*")
             .eq("session_id", sessionId)
             .single();
 
+          console.log("Session data:", sessionData);
+          console.log("Session error:", sessionError);
+
           if (sessionError) throw sessionError;
 
-          if (sessionData.status === "verified") {
+          if (sessionData?.status === "verified") {
             setMode("signup");
             toast({
               title: "Payment successful!",

@@ -30,6 +30,7 @@ serve(async (req) => {
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      console.log("Received session:", session);
 
       // Create Supabase client
       const supabaseClient = createClient(
@@ -37,16 +38,43 @@ serve(async (req) => {
         Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "",
       );
 
-      // Update stripe session status
-      const { error } = await supabaseClient
-        .from("stripe_sessions")
-        .update({
-          status: "verified",
-          email: session.customer_email,
-        })
-        .eq("session_id", session.id);
+      try {
+        // First try to find existing session
+        const { data: existingSession, error: findError } = await supabaseClient
+          .from("stripe_sessions")
+          .select("*")
+          .eq("session_id", session.id)
+          .single();
 
-      if (error) throw error;
+        if (findError && findError.code === "PGRST116") {
+          // Session doesn't exist, create it
+          const { error: insertError } = await supabaseClient
+            .from("stripe_sessions")
+            .insert({
+              session_id: session.id,
+              status: "verified",
+              email: session.customer_email,
+            });
+
+          if (insertError) throw insertError;
+        } else if (!findError) {
+          // Session exists, update it
+          const { error: updateError } = await supabaseClient
+            .from("stripe_sessions")
+            .update({
+              status: "verified",
+              email: session.customer_email,
+            })
+            .eq("session_id", session.id);
+
+          if (updateError) throw updateError;
+        }
+
+        console.log("Successfully processed session", session.id);
+      } catch (error) {
+        console.error("Error processing session:", error);
+        throw error;
+      }
     }
 
     return new Response(JSON.stringify({ received: true }), {
