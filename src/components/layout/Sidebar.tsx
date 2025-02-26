@@ -152,22 +152,50 @@ const Sidebar = ({
           <Button
             variant="default"
             className="w-full flex items-center justify-center gap-2 mb-4"
-            onClick={() => {
-              // Get the current URL of your application
-              const currentUrl = window.location.origin;
-              // Create the success and cancel URLs
-              const successUrl = encodeURIComponent(
-                `${currentUrl}?payment=success`,
-              );
-              const cancelUrl = encodeURIComponent(
-                `${currentUrl}?payment=canceled`,
-              );
+            onClick={async () => {
+              try {
+                // Get the current URL of your application
+                const currentUrl = window.location.origin;
+                console.log("Current URL:", currentUrl);
 
-              // Create the full Stripe URL with query parameters
-              const stripeUrl = `https://buy.stripe.com/6oE3cj4ulgYngqA3ce?success_url=${successUrl}&cancel_url=${cancelUrl}`;
+                // Create the success and cancel URLs
+                const successUrl = `${currentUrl}?payment=success`;
+                const cancelUrl = `${currentUrl}?payment=canceled`;
+                console.log("Success URL:", successUrl);
+                console.log("Cancel URL:", cancelUrl);
 
-              // Redirect to Stripe checkout
-              window.location.href = stripeUrl;
+                // Call our create-checkout function
+                const response = await fetch(
+                  "https://slridxiczocmupyjgaek.supabase.co/functions/v1/create-checkout-session",
+                  {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                      success_url: successUrl,
+                      cancel_url: cancelUrl,
+                    }),
+                  },
+                );
+
+                const data = await response.json();
+                console.log("Response:", data);
+
+                if (data.error) throw new Error(data.error);
+                if (!data.url) throw new Error("No checkout URL returned");
+
+                // Redirect to Stripe checkout
+                window.location.href = data.url;
+              } catch (error: any) {
+                console.error("Error creating checkout session:", error);
+                toast({
+                  variant: "destructive",
+                  title: "Error",
+                  description:
+                    error.message || "Failed to create checkout session",
+                });
+              }
             }}
           >
             <CreditCard className="h-4 w-4" />
