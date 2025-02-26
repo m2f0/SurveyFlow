@@ -95,26 +95,52 @@ export default function AuthForm() {
     }
   };
 
-  const handleSignUpClick = () => {
-    // Get the current URL of your application
-    const currentUrl = window.location.origin;
-    console.log("Current URL:", currentUrl);
+  const handleSignUpClick = async () => {
+    try {
+      setLoading(true);
+      // Get the current URL of your application
+      const currentUrl = window.location.origin;
+      console.log("Current URL:", currentUrl);
 
-    // Create the success and cancel URLs with session ID
-    const successUrl = encodeURIComponent(
-      `${currentUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
-    );
-    const cancelUrl = encodeURIComponent(`${currentUrl}?checkout=canceled`);
+      // Create the success and cancel URLs
+      const successUrl = `${currentUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelUrl = `${currentUrl}?checkout=canceled`;
+      console.log("Success URL:", successUrl);
+      console.log("Cancel URL:", cancelUrl);
 
-    console.log("Success URL:", decodeURIComponent(successUrl));
-    console.log("Cancel URL:", decodeURIComponent(cancelUrl));
+      // Call our create-checkout function
+      const response = await fetch(
+        "https://slridxiczocmupyjgaek.supabase.co/functions/v1/create-checkout-session",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+          }),
+        },
+      );
 
-    // Use the test Stripe URL with query parameters
-    const stripeUrl = `https://buy.stripe.com/test_8wM4gQdCW04z9fa3cc?success_url=${successUrl}&cancel_url=${cancelUrl}`;
-    console.log("Full Stripe URL:", stripeUrl);
+      const data = await response.json();
+      console.log("Response:", data);
 
-    // Redirect to Stripe checkout
-    window.location.href = stripeUrl;
+      if (data.error) throw new Error(data.error);
+      if (!data.url) throw new Error("No checkout URL returned");
+
+      // Redirect to Stripe checkout
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to create checkout session",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Check for success or cancel parameters in URL
