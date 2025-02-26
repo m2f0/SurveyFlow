@@ -81,7 +81,7 @@ export default function AuthForm() {
     const cancelUrl = `${currentUrl}?checkout=canceled`;
 
     // Append the success_url and cancel_url as query parameters to the Stripe checkout URL
-    const stripeUrl = new URL("https://buy.stripe.com/test_8wM4gQdCW04z9fa3cc");
+    const stripeUrl = new URL("https://buy.stripe.com/6oEcMTe4VeQffmw289");
     stripeUrl.searchParams.append("success_url", successUrl);
     stripeUrl.searchParams.append("cancel_url", cancelUrl);
 
@@ -111,7 +111,7 @@ export default function AuthForm() {
   return (
     <Card className="w-full max-w-md p-6 space-y-6 bg-card relative z-10">
       <div className="space-y-2 text-center">
-        <h1 className="text-2xl font-bold">Welcome to Survey AI</h1>
+        <h1 className="text-2xl font-bold">Welcome to SurveyFlow AI!</h1>
         <p className="text-muted-foreground">
           {mode === "signin"
             ? "Sign in to your account"
