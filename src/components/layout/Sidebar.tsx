@@ -164,7 +164,7 @@ const Sidebar = ({
               );
 
               // Create the full Stripe URL with query parameters
-              const stripeUrl = `https://buy.stripe.com/test_7sIcNm42mdVpaje7st?success_url=${successUrl}&cancel_url=${cancelUrl}`;
+              const stripeUrl = `https://buy.stripe.com/6oE3cj4ulgYngqA3ce?success_url=${successUrl}&cancel_url=${cancelUrl}`;
 
               // Redirect to Stripe checkout
               window.location.href = stripeUrl;
