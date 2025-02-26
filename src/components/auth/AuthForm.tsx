@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { loadStripe } from "@stripe/stripe-js";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
@@ -33,6 +34,21 @@ export default function AuthForm() {
         });
         if (error) throw error;
       } else if (mode === "signup") {
+        // Verify stripe session first
+        const { data: sessionData, error: sessionError } = await supabase
+          .from("stripe_sessions")
+          .select("*")
+          .eq("status", "verified")
+          .eq("email", formData.email)
+          .single();
+
+        if (sessionError || !sessionData) {
+          throw new Error(
+            "Please complete payment before registration. If you've already paid, please wait a few moments for verification.",
+          );
+        }
+
+        // Proceed with registration
         const { data, error } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
@@ -44,6 +60,12 @@ export default function AuthForm() {
           },
         });
         if (error) throw error;
+
+        // Update session status to used
+        await supabase
+          .from("stripe_sessions")
+          .update({ status: "used" })
+          .eq("id", sessionData.id);
 
         // Clear form
         setFormData({
@@ -76,28 +98,62 @@ export default function AuthForm() {
   const handleSignUpClick = () => {
     // Get the current URL of your application
     const currentUrl = window.location.origin;
-    // Create the success and cancel URLs
-    const successUrl = `${currentUrl}?checkout=success`;
-    const cancelUrl = `${currentUrl}?checkout=canceled`;
+    // Create the success and cancel URLs with session ID
+    const successUrl = encodeURIComponent(
+      `${currentUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+    );
+    const cancelUrl = encodeURIComponent(`${currentUrl}?checkout=canceled`);
 
-    // Append the success_url and cancel_url as query parameters to the Stripe checkout URL
-    const stripeUrl = new URL("https://buy.stripe.com/6oEcMTe4VeQffmw289");
-    stripeUrl.searchParams.append("success_url", successUrl);
-    stripeUrl.searchParams.append("cancel_url", cancelUrl);
+    // Create the full Stripe URL with query parameters
+    const stripeUrl = `https://buy.stripe.com/6oEcMTe4VeQffmw289?success_url=${successUrl}&cancel_url=${cancelUrl}`;
+
+    // Initialize Stripe
+    const stripe = Stripe(
+      "pk_live_51QpTUIRspk4arSJEBWRPBaj5G9jsoJd6dUveRCBHWNPHjhSIf1veapDjBMKXHzxGsay4LlUiC84ndHbTpDAKcoNs00OsKnSN3W",
+    );
 
     // Redirect to Stripe checkout
-    window.location.href = stripeUrl.toString();
+    window.location.href = stripeUrl;
   };
 
   // Check for success or cancel parameters in URL
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get("checkout") === "success") {
-      setMode("signup");
-      toast({
-        title: "Payment successful!",
-        description: "Please complete your registration.",
-      });
+    const sessionId = params.get("session_id");
+
+    if (params.get("checkout") === "success" && sessionId) {
+      // Check if session exists and is verified
+      const checkSession = async () => {
+        try {
+          const { data: sessionData, error: sessionError } = await supabase
+            .from("stripe_sessions")
+            .select("*")
+            .eq("session_id", sessionId)
+            .single();
+
+          if (sessionError) throw sessionError;
+
+          if (sessionData.status === "verified") {
+            setMode("signup");
+            toast({
+              title: "Payment successful!",
+              description: "Please complete your registration.",
+            });
+          } else {
+            throw new Error("Payment verification pending");
+          }
+        } catch (error) {
+          console.error("Error checking session:", error);
+          toast({
+            variant: "destructive",
+            title: "Error",
+            description:
+              "There was an error verifying your payment. Please try again in a few moments.",
+          });
+        }
+      };
+
+      checkSession();
     } else if (params.get("checkout") === "canceled") {
       setMode("signin");
       toast({
@@ -106,7 +162,7 @@ export default function AuthForm() {
         description: "Your payment was not completed.",
       });
     }
-  }, []);
+  }, [toast]);
 
   return (
     <Card className="w-full max-w-md p-6 space-y-6 bg-card relative z-10">
