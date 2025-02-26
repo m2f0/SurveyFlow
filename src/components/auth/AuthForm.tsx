@@ -112,7 +112,11 @@ export default function AuthForm() {
     <Card className="w-full max-w-md p-6 space-y-6 bg-card relative z-10">
       <div className="space-y-6 text-center">
         <div className="flex justify-center">
-          <img src="/logo.png" alt="SurveyFlow AI Logo" className="w-24 h-24" />
+          <img
+            src="/logo.png"
+            alt="SurveyFlow AI Logo"
+            className="w-24 h-24 rounded-2xl"
+          />
         </div>
         <h1 className="text-2xl font-bold">Welcome to SurveyFlow AI!</h1>
         <p className="text-muted-foreground">
