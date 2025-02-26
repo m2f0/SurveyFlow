@@ -28,7 +28,7 @@ function App() {
             await increaseUserCredits(user.id);
             toast({
               title: "Credits Added",
-              description: "37,000 credits have been added to your account!",
+              description: "14,500 credits have been added to your account!",
             });
           } catch (error: any) {
             console.error("Error increasing credits:", error);

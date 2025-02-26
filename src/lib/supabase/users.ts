@@ -42,7 +42,7 @@ export async function getUserCredits(userId: string) {
 
 export async function increaseUserCredits(
   userId: string,
-  amount: number = 37000,
+  amount: number = 14500,
 ) {
   // First get current credits
   const { data: userData, error: fetchError } = await supabase

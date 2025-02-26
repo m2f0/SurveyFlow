@@ -48,7 +48,7 @@ export default function ProfileManager() {
                 email: user.email,
                 name: user.user_metadata.name || "Anonymous User", // Default name since it's required
                 phone: user.user_metadata.phone,
-                credits: 37000, // Set initial credits when creating user,
+                credits: 1000, // Set initial credits when creating user,
               },
             ])
             .select("credits")
