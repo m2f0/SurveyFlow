@@ -100,7 +100,10 @@ const Sidebar = ({
       <div className="flex flex-col h-full relative z-10">
         {/* Header */}
         <div className="p-4 border-b flex items-center justify-between">
-          <div className="font-bold text-xl">Survey AI</div>
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="SurveyFlow AI Logo" className="w-8 h-8" />
+            <div className="font-bold text-xl">SurveyFlow AI</div>
+          </div>
           <Button
             variant="ghost"
             size="icon"

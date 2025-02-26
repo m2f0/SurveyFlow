@@ -110,7 +110,10 @@ export default function AuthForm() {
 
   return (
     <Card className="w-full max-w-md p-6 space-y-6 bg-card relative z-10">
-      <div className="space-y-2 text-center">
+      <div className="space-y-6 text-center">
+        <div className="flex justify-center">
+          <img src="/logo.png" alt="SurveyFlow AI Logo" className="w-24 h-24" />
+        </div>
         <h1 className="text-2xl font-bold">Welcome to SurveyFlow AI!</h1>
         <p className="text-muted-foreground">
           {mode === "signin"
