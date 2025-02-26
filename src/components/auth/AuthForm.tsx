@@ -114,6 +114,7 @@ export default function AuthForm() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
             success_url: successUrl,
