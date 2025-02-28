@@ -98,7 +98,7 @@ export default function AuthForm() {
     try {
       setLoading(true);
       // Get the current URL of your application
-      const currentUrl = window.location.origin;
+      const currentUrl = "https://inspiring-murdock8-q55sp.dev-2.tempolabs.ai";
       console.log("Current URL:", currentUrl);
 
       // Create the success and cancel URLs
@@ -114,7 +114,7 @@ export default function AuthForm() {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}`,
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
           },
           body: JSON.stringify({
             success_url: successUrl,

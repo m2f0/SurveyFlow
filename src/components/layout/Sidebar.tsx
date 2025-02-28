@@ -155,7 +155,8 @@ const Sidebar = ({
             onClick={async () => {
               try {
                 // Get the current URL of your application
-                const currentUrl = window.location.origin;
+                const currentUrl =
+                  "https://inspiring-murdock8-q55sp.dev-2.tempolabs.ai";
                 console.log("Current URL:", currentUrl);
 
                 // Create the success and cancel URLs
