@@ -17,7 +17,7 @@ import {
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/components/ui/use-toast";
-import { AnimatedBackground } from "./AnimatedBackground";
+import AnimatedBackground from "./AnimatedBackground";
 import { useAuth } from "@/lib/hooks/useAuth";
 
 interface TabChangeHandler {

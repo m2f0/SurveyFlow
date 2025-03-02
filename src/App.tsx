@@ -1,18 +1,27 @@
 import React, { Suspense } from "react";
-import { useRoutes, Navigate, Routes, Route } from "react-router-dom";
+import {
+  useRoutes,
+  Navigate,
+  Routes,
+  Route,
+  useLocation,
+} from "react-router-dom";
 import Home from "./components/home";
 import AuthForm from "./components/auth/AuthForm";
+import LandingPage from "./components/landing/LandingPage";
+import DemoPage from "./components/landing/DemoPage";
 import tempoRoutes from "tempo-routes";
 import appRoutes from "./routes";
 import { useAuth } from "./lib/hooks/useAuth";
 import { increaseUserCredits } from "./lib/supabase/users";
 import { useToast } from "@/components/ui/use-toast";
 import { Toaster } from "@/components/ui/toaster";
-import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
+import AnimatedBackground from "./components/layout/AnimatedBackground";
 
 function App() {
   const { toast } = useToast();
   const { user, loading, initialized } = useAuth();
+  const location = useLocation();
   // Use the routes
   const tempo =
     import.meta.env.VITE_TEMPO === "true" ? useRoutes(tempoRoutes) : null;
@@ -94,14 +103,38 @@ function App() {
     );
   }
 
-  // Show auth form if not logged in
+  // Show landing page or auth form if not logged in
   if (!user) {
+    // Check if we're on the auth or demo route
+    const isAuthRoute = location.pathname === "/auth";
+    const isDemoRoute = location.pathname === "/demo";
+
+    if (isAuthRoute) {
+      return (
+        <>
+          <div className="flex items-center justify-center w-full min-h-screen bg-background relative overflow-hidden">
+            <AnimatedBackground />
+            <AuthForm />
+          </div>
+          <Toaster />
+        </>
+      );
+    }
+
+    // Show demo page if on demo route
+    if (isDemoRoute) {
+      return (
+        <>
+          <DemoPage />
+          <Toaster />
+        </>
+      );
+    }
+
+    // Show landing page for all other routes when not logged in
     return (
       <>
-        <div className="flex items-center justify-center w-full min-h-screen bg-background relative overflow-hidden">
-          <AnimatedBackground />
-          <AuthForm />
-        </div>
+        <LandingPage />
         <Toaster />
       </>
     );
@@ -120,6 +153,9 @@ function App() {
           <AnimatedBackground />
           <div className="relative z-10">
             <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/auth" element={<AuthForm />} />
+              <Route path="/demo" element={<DemoPage />} />
               <Route path="/*" element={<Home />} />
             </Routes>
             {tempo}

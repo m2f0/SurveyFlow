@@ -40,6 +40,16 @@ export function useAuth() {
 
   useEffect(() => {
     let mounted = true;
+    let timeoutId: number;
+
+    // Add a timeout to ensure initialization completes
+    timeoutId = window.setTimeout(() => {
+      if (mounted && loading) {
+        console.log("Auth initialization timed out, forcing completion");
+        setInitialized(true);
+        setLoading(false);
+      }
+    }, 5000);
 
     // Initial session check
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -83,6 +93,7 @@ export function useAuth() {
 
     return () => {
       mounted = false;
+      clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);

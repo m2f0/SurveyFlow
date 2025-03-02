@@ -3,196 +3,256 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Loader2, Save, User } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
-import { AnimatedBackground } from "../layout/AnimatedBackground";
+import { Loader2, Save, CreditCard, AlertCircle } from "lucide-react";
+import AnimatedBackground from "../layout/AnimatedBackground";
 
-interface UserProfile {
-  name: string;
-  phone: string;
-  email: string;
-  credits?: number;
-}
-
-export default function ProfileManager() {
-  const { user } = useAuth();
+const ProfileManager = () => {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<UserProfile>({
+  const [credits, setCredits] = useState<number>(0);
+  const [profile, setProfile] = useState({
     name: "",
+    email: "",
     phone: "",
-    email: user?.email || "",
   });
 
   useEffect(() => {
-    const fetchUserData = async () => {
+    const fetchUserProfile = async () => {
       if (!user?.id) return;
 
       try {
-        // Try to fetch existing user
-        let { data: userData, error: fetchError } = await supabase
+        setLoading(true);
+        const { data, error } = await supabase
           .from("users")
-          .select("credits")
+          .select("*")
           .eq("id", user.id)
           .single();
 
-        // If user doesn't exist, create them
-        if (fetchError?.code === "PGRST116") {
-          const { data: newUser, error: createError } = await supabase
-            .from("users")
-            .insert([
-              {
-                id: user.id,
-                email: user.email,
-                name: user.user_metadata.name || "Anonymous User", // Default name since it's required
-                phone: user.user_metadata.phone,
-                credits: 1000, // Set initial credits when creating user,
-              },
-            ])
-            .select("credits")
-            .single();
-
-          if (createError) {
-            console.error("Error creating user:", createError);
-            toast({
-              variant: "destructive",
-              title: "Error",
-              description:
-                "Could not create user profile: " + createError.message,
-            });
-            return;
-          }
-
-          userData = newUser;
-        } else if (fetchError) {
-          console.error("Error fetching user:", fetchError);
-          toast({
-            variant: "destructive",
-            title: "Error",
-            description: "Could not fetch user data: " + fetchError.message,
-          });
-          return;
-        }
-
-        console.log("User data:", userData);
+        if (error) throw error;
 
         setProfile({
-          name: user.user_metadata.name || "",
-          phone: user.user_metadata.phone || "",
-          email: user.email || "",
-          credits: userData?.credits ?? 1000,
+          name: data.name || "",
+          email: data.email || "",
+          phone: data.phone || "",
         });
+
+        setCredits(data.credits || 0);
       } catch (error: any) {
-        console.error("Unexpected error:", error);
+        console.error("Error fetching profile:", error);
         toast({
           variant: "destructive",
           title: "Error",
-          description: "An unexpected error occurred: " + error.message,
+          description: error.message || "Failed to load profile",
         });
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchUserData();
+    fetchUserProfile();
   }, [user, toast]);
 
   const handleUpdateProfile = async () => {
-    setLoading(true);
+    if (!user?.id) return;
+
     try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
+      setLoading(true);
+      const { error } = await supabase
+        .from("users")
+        .update({
           name: profile.name,
           phone: profile.phone,
-        },
-      });
+        })
+        .eq("id", user.id);
 
       if (error) throw error;
 
       toast({
-        title: "Profile updated",
-        description: "Your profile has been updated successfully.",
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
       });
     } catch (error: any) {
+      console.error("Error updating profile:", error);
       toast({
         variant: "destructive",
         title: "Error",
-        description: error.message,
+        description: error.message || "Failed to update profile",
       });
     } finally {
       setLoading(false);
     }
   };
 
+  const handleBuyCredits = async () => {
+    try {
+      // Get the current URL of your application
+      const currentUrl = window.location.origin;
+
+      // Create the success and cancel URLs
+      const successUrl = `${currentUrl}?payment=success`;
+      const cancelUrl = `${currentUrl}?payment=canceled`;
+
+      // Call backend API to create credits purchase
+      const response = await fetch(
+        "https://surveyflowai-162119fdccd1.herokuapp.com/stripe/create-credits-purchase",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            customer_email: profile.email,
+            quantity: 1, // Default quantity
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (data.error) throw new Error(data.error);
+      if (!data.url) throw new Error("No checkout URL returned");
+
+      // Redirect to Stripe checkout
+      window.location.href = data.url;
+    } catch (error: any) {
+      console.error("Error creating checkout session:", error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error.message || "Failed to create checkout session",
+      });
+    }
+  };
+
   return (
-    <div className="w-full min-h-screen bg-background p-6 relative overflow-hidden">
-      <AnimatedBackground />
-      <div className="max-w-2xl mx-auto relative z-10">
-        <Card className="p-6 bg-card/50 backdrop-blur-sm">
-          <div className="flex items-center gap-4 mb-6">
-            <div className="p-3 rounded-full bg-primary/10">
-              <User className="w-6 h-6" />
-            </div>
-            <h1 className="text-2xl font-bold">Profile Settings</h1>
-          </div>
+    <div className="p-6 bg-background min-h-screen relative">
+      <div className="absolute inset-0 z-0 opacity-50">
+        <AnimatedBackground />
+      </div>
 
-          <div className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                value={profile.name}
-                onChange={(e) =>
-                  setProfile((prev) => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="John Doe"
-              />
-            </div>
+      <div className="max-w-4xl mx-auto space-y-6 relative z-10">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-bold">Account Settings</h1>
+          <Badge variant="outline" className="px-3 py-1">
+            Credits: {credits.toLocaleString()}
+          </Badge>
+        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                value={profile.phone}
-                onChange={(e) =>
-                  setProfile((prev) => ({ ...prev, phone: e.target.value }))
-                }
-                placeholder="+1234567890"
-              />
-            </div>
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="profile">Profile</TabsTrigger>
+            <TabsTrigger value="billing">Billing</TabsTrigger>
+          </TabsList>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" value={profile.email} disabled />
-              <p className="text-sm text-muted-foreground">
-                Email cannot be changed
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Available Credits</Label>
-              <div className="flex items-center space-x-2 bg-muted p-3 rounded-md">
-                <div className="text-2xl font-bold">
-                  {profile.credits?.toLocaleString()}
+          <TabsContent value="profile" className="mt-0">
+            <Card className="p-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Name</Label>
+                  <Input
+                    id="name"
+                    value={profile.name}
+                    onChange={(e) =>
+                      setProfile({ ...profile, name: e.target.value })
+                    }
+                    disabled={loading}
+                  />
                 </div>
-                <div className="text-sm text-muted-foreground">
-                  credits remaining
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={profile.email}
+                    disabled={true}
+                    className="bg-muted"
+                  />
+                  <p className="text-sm text-muted-foreground">
+                    Email cannot be changed
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    value={profile.phone}
+                    onChange={(e) =>
+                      setProfile({ ...profile, phone: e.target.value })
+                    }
+                    disabled={loading}
+                  />
+                </div>
+
+                <Button
+                  onClick={handleUpdateProfile}
+                  disabled={loading}
+                  className="mt-4"
+                >
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </Button>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="billing" className="mt-0">
+            <Card className="p-6">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <h3 className="text-lg font-semibold">Current Credits</h3>
+                  <div className="text-3xl font-bold">
+                    {credits.toLocaleString()}
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    Credits are used for generating AI responses
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-lg font-semibold">Purchase Credits</h3>
+
+                  <Card className="p-4 border-2 border-primary/20 bg-primary/5">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h4 className="font-medium">37,000 Credits</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Approximately 37 detailed AI responses
+                        </p>
+                      </div>
+                      <div className="text-xl font-bold">$29</div>
+                    </div>
+
+                    <Button onClick={handleBuyCredits} className="w-full mt-4">
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Purchase Now
+                    </Button>
+                  </Card>
+
+                  <div className="flex items-start space-x-2 text-sm text-muted-foreground">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <p>
+                      Credits never expire and can be used for any AI response
+                      generation in the platform.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-
-            <Button
-              className="w-full"
-              onClick={handleUpdateProfile}
-              disabled={loading}
-            >
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
-            </Button>
-          </div>
-        </Card>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
-}
+};
+
+export default ProfileManager;

@@ -1,165 +1,68 @@
 import React, { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
-import { Campaign } from "@/lib/supabase/campaigns";
-import CSVUploader from "../upload/CSVUploader";
-import ResponsePanel from "../responses/ResponsePanel.tsx";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card } from "@/components/ui/card";
+import AnimatedBackground from "../layout/AnimatedBackground";
 import CampaignManager from "../email/CampaignManager";
+import CSVUploader from "../upload/CSVUploader";
+import ResponsePanel from "../responses/ResponsePanel";
 import AnalyticsDashboard from "../analytics/AnalyticsDashboard";
 import ProfileManager from "../profile/ProfileManager";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Card } from "../ui/card";
-import { AnimatedBackground } from "../layout/AnimatedBackground";
-
-interface CSVData {
-  [key: string]: string;
-}
-
-interface FileInfo {
-  name: string;
-  size: number;
-  date: string;
-  recordCount: number;
-}
 
 interface DashboardContentProps {
-  activeTab?: string;
-  onTabChange?: (value: string) => void;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
 }
 
 const DashboardContent = ({
-  activeTab = "campaigns",
-  onTabChange = () => {},
+  activeTab,
+  onTabChange,
 }: DashboardContentProps) => {
-  const [responses, setResponses] = useState<CSVData[]>([]);
-  const [uploadedFileInfo, setUploadedFileInfo] = useState<FileInfo | null>(
-    null,
-  );
-  const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
-    null,
-  );
-  const [analyticsData, setAnalyticsData] = useState({
-    responseData: [
-      {
-        date: new Date().toISOString().split("T")[0],
-        responses: 0,
-        engagement: 0,
-      },
-    ],
-    emailStats: {
-      sent: 0,
-      delivered: 0,
-      opened: 0,
-      clicked: 0,
-    },
-  });
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [fileInfo, setFileInfo] = useState<any>(null);
+  const [selectedCampaign, setSelectedCampaign] = useState<any>(null);
 
-  const handleCSVData = (data: CSVData[], fileInfo: FileInfo) => {
-    setResponses(data);
-    setUploadedFileInfo(fileInfo);
+  const handleDataParsed = (data: any[], info: any) => {
+    setCsvData(data);
+    setFileInfo(info);
+  };
 
-    // Update analytics with the new data
-    setAnalyticsData({
-      responseData: [
-        {
-          date: new Date().toISOString().split("T")[0],
-          responses: data.length,
-          engagement: Math.round(data.length * 0.8), // Simulated engagement rate
-        },
-      ],
-      emailStats: {
-        sent: data.length,
-        delivered: Math.round(data.length * 0.98),
-        opened: Math.round(data.length * 0.75),
-        clicked: Math.round(data.length * 0.45),
-      },
-    });
-    // Removed automatic tab change to responses
+  const handleCampaignSelect = (campaign: any) => {
+    setSelectedCampaign(campaign);
   };
 
   return (
-    <div className="w-full min-h-screen bg-background p-4 lg:p-6 relative overflow-hidden">
-      <AnimatedBackground />
-      <Card className="w-full h-full bg-card/50 backdrop-blur-sm relative z-10">
-        <Tabs value={activeTab} className="w-full" onValueChange={onTabChange}>
-          <TabsList className="grid w-full grid-cols-2 lg:grid-cols-5 gap-2 bg-background/30 backdrop-blur-sm">
-            <TabsTrigger
-              value="campaigns"
-              className="bg-[#0F172A]/80 text-white hover:text-white hover:bg-[#0F172A]/90 data-[state=active]:bg-[#0F172A]/95 data-[state=active]:text-white backdrop-blur-sm"
-            >
-              Campaigns
-            </TabsTrigger>
-            <TabsTrigger
-              value="upload"
-              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
-            >
-              CSV Upload
-            </TabsTrigger>
-            <TabsTrigger
-              value="responses"
-              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
-            >
-              Responses
-            </TabsTrigger>
-            <TabsTrigger
-              value="analytics"
-              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
-            >
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger
-              value="profile"
-              className="bg-accent/30 hover:bg-accent/40 data-[state=active]:bg-accent/50 backdrop-blur-sm"
-            >
-              Profile
-            </TabsTrigger>
-          </TabsList>
+    <div className="relative min-h-screen bg-background">
+      <div className="absolute inset-0 z-0 opacity-50">
+        <AnimatedBackground />
+      </div>
 
-          <div className="mt-6">
-            <TabsContent value="upload" className="m-0">
-              <CSVUploader
-                onDataParsed={handleCSVData}
-                initialFileInfo={uploadedFileInfo}
-              />
-            </TabsContent>
+      <div className="relative z-10">
+        {activeTab === "campaigns" && (
+          <CampaignManager onCampaignSelect={handleCampaignSelect} />
+        )}
 
-            <TabsContent value="responses" className="m-0">
-              <ResponsePanel
-                responses={responses}
-                companyName={selectedCampaign?.company_name}
-                companyDetails={selectedCampaign?.company_details}
-                signature={selectedCampaign?.signature}
-                responseSize={selectedCampaign?.response_size}
-                campaignType={selectedCampaign?.campaign_type}
-                campaignId={selectedCampaign?.id}
-              />
-            </TabsContent>
+        {activeTab === "upload" && (
+          <CSVUploader
+            onDataParsed={handleDataParsed}
+            initialFileInfo={fileInfo}
+          />
+        )}
 
-            <TabsContent value="campaigns" className="m-0">
-              <CampaignManager
-                onCampaignSelect={(campaign) => {
-                  setSelectedCampaign(campaign);
-                  if (campaign) {
-                    setResponses([]); // Clear responses when switching campaigns
-                  }
-                }}
-              />
-            </TabsContent>
+        {activeTab === "responses" && (
+          <ResponsePanel
+            responses={csvData}
+            companyName="SurveyFlow AI"
+            signature={selectedCampaign?.signature}
+            responseSize={selectedCampaign?.response_size}
+            campaignType={selectedCampaign?.campaign_type}
+            campaignId={selectedCampaign?.id}
+          />
+        )}
 
-            <TabsContent value="analytics" className="m-0">
-              <AnalyticsDashboard
-                responseData={analyticsData.responseData}
-                emailStats={analyticsData.emailStats}
-              />
-            </TabsContent>
+        {activeTab === "analytics" && <AnalyticsDashboard />}
 
-            <TabsContent value="profile" className="m-0">
-              <ProfileManager />
-            </TabsContent>
-          </div>
-        </Tabs>
-
-        <Outlet />
-      </Card>
+        {activeTab === "profile" && <ProfileManager />}
+      </div>
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React from "react";
 import { motion } from "framer-motion";
 
-const AnimatedBackground = () => {
+export const AnimatedBackground = () => {
   // Create an array of 100 dots
   const dots = Array.from({ length: 100 }).map((_, i) => ({
     id: i,

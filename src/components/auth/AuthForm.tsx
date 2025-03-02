@@ -12,7 +12,13 @@ import { useNavigate } from "react-router-dom";
 type AuthMode = "signin" | "signup";
 
 export default function AuthForm() {
-  const [mode, setMode] = useState<AuthMode>("signin");
+  // Check URL parameters for mode
+  const getInitialMode = (): AuthMode => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("mode") === "signup" ? "signup" : "signin";
+  };
+
+  const [mode, setMode] = useState<AuthMode>(getInitialMode());
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
