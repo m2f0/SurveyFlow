@@ -9,16 +9,104 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      campaigns: {
+        Row: {
+          campaign_type: string | null
+          created_at: string
+          id: string
+          name: string
+          response_size: string | null
+          scheduled_date: string | null
+          signature: string | null
+          status: Database["public"]["Enums"]["campaign_status"]
+          user_id: string | null
+        }
+        Insert: {
+          campaign_type?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          response_size?: string | null
+          scheduled_date?: string | null
+          signature?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          user_id?: string | null
+        }
+        Update: {
+          campaign_type?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          response_size?: string | null
+          scheduled_date?: string | null
+          signature?: string | null
+          status?: Database["public"]["Enums"]["campaign_status"]
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string
+          credits: number | null
+          email: string | null
+          id: string
+          name: string | null
+          phone: string | null
+        }
+        Insert: {
+          created_at?: string
+          credits?: number | null
+          email?: string | null
+          id: string
+          name?: string | null
+          phone?: string | null
+        }
+        Update: {
+          created_at?: string
+          credits?: number | null
+          email?: string | null
+          id?: string
+          name?: string | null
+          phone?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      create_new_user: {
+        Args: {
+          user_id: string
+          user_email: string
+          user_name: string
+          user_phone: string
+          initial_credits?: number
+        }
+        Returns: undefined
+      }
+      create_user_bypass_fk: {
+        Args: {
+          user_id: string
+          user_email: string
+          user_name: string
+          user_phone: string
+          initial_credits?: number
+        }
+        Returns: {
+          created_at: string
+          credits: number | null
+          email: string | null
+          id: string
+          name: string | null
+          phone: string | null
+        }[]
+      }
     }
     Enums: {
-      [_ in never]: never
+      campaign_status: "draft" | "scheduled" | "sent"
     }
     CompositeTypes: {
       [_ in never]: never

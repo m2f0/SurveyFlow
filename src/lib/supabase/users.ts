@@ -1,4 +1,5 @@
 import { supabase } from "../supabase";
+import { supabaseAdmin } from "../supabase-admin";
 
 export async function updateUserCredits(userId: string, tokensUsed: number) {
   // First get current credits
@@ -18,7 +19,7 @@ export async function updateUserCredits(userId: string, tokensUsed: number) {
     throw new Error("Insufficient credits");
   }
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("users")
     .update({ credits: newCredits })
     .eq("id", userId)
@@ -57,7 +58,7 @@ export async function increaseUserCredits(
   // Then update with new value
   const newCredits = (userData.credits || 0) + amount;
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from("users")
     .update({ credits: newCredits })
     .eq("id", userId)

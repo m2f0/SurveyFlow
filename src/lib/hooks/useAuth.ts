@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../supabase";
+import { supabaseAdmin } from "../supabase-admin";
 import { User } from "@supabase/supabase-js";
 
 export function useAuth() {
@@ -9,39 +10,27 @@ export function useAuth() {
 
   const initializeUser = async (user: User) => {
     try {
-      // Try to fetch existing user
+      // Apenas verificar se o usuário existe na tabela users
+      // NÃO criar automaticamente - o usuário só deve ser criado após pagamento
       const { data: existingUser, error: fetchError } = await supabase
         .from("users")
         .select("*")
         .eq("id", user.id)
         .single();
 
-      // If user doesn't exist, create them
       if (fetchError?.code === "PGRST116") {
-        const { data: newUser, error: createError } = await supabase
-          .from("users")
-          .insert([
-            {
-              id: user.id,
-              email: user.email,
-              name: user.user_metadata.name || "Anonymous User",
-              phone: user.user_metadata.phone,
-              credits: 37000,
-            },
-          ])
-          .select()
-          .single();
-
-        if (createError || !newUser) {
-          console.error("Error creating user:", createError);
-          return false;
-        }
-
-        console.log("Created new user:", newUser);
+        console.log(
+          "User not found in users table - waiting for payment confirmation",
+        );
+        // Não criar o usuário aqui - apenas retornar true para continuar o fluxo
+        // O usuário será criado pelo backend após confirmação do pagamento
+        return true;
       } else if (fetchError) {
         console.error("Error fetching user:", fetchError);
         return false;
       }
+
+      console.log("User found in users table:", existingUser);
       return true;
     } catch (error) {
       console.error("Error initializing user:", error);

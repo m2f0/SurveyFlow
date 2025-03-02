@@ -184,53 +184,76 @@ export default function AuthForm() {
               // Wait a moment to ensure Auth user is fully created
               await new Promise((resolve) => setTimeout(resolve, 1000));
 
-              // Create entry in users table
+              // Verificar se o usuário já existe na tabela users antes de criar
               if (userData?.user) {
                 try {
-                  // Usar o cliente admin com service role para inserir o usuário
-                  console.log("Attempting to create user with admin client");
-                  const { error: insertError } = await supabaseAdmin
-                    .from("users")
-                    .insert([
-                      {
-                        id: userData.user.id,
-                        email: data.customer_email.trim(),
-                        name: storedFormData.name || "New User",
-                        phone: storedFormData.phone || "",
-                        credits: 37000, // Initial credits
-                      },
-                    ]);
+                  // Primeiro verificar se o usuário já existe na tabela users
+                  const { data: existingUser, error: checkError } =
+                    await supabaseAdmin
+                      .from("users")
+                      .select("id, email")
+                      .eq("email", data.customer_email.trim())
+                      .maybeSingle();
 
-                  if (insertError) {
-                    console.error("Insert error:", insertError);
-
-                    // Se falhar, tentar usar a função RPC
-                    const { error: rpcError } = await supabase.rpc(
-                      "create_new_user",
-                      {
-                        user_id: userData.user.id,
-                        user_email: data.customer_email.trim(),
-                        user_name: storedFormData.name || "New User",
-                        user_phone: storedFormData.phone || "",
-                        initial_credits: 37000,
-                      },
-                    );
-
-                    if (rpcError) {
-                      console.error("RPC error:", rpcError);
-                      throw rpcError;
-                    }
-
-                    console.log("User created in users table via RPC");
-                  } else {
+                  if (existingUser) {
                     console.log(
-                      "User created in users table via direct insert",
+                      "User already exists in users table with email:",
+                      existingUser.email,
                     );
+
+                    // Se o ID for diferente, atualize para o novo ID do Auth
+                    if (existingUser.id !== userData.user.id) {
+                      console.log(
+                        "Updating user ID in users table to match Auth ID",
+                      );
+                      await supabaseAdmin
+                        .from("users")
+                        .update({ id: userData.user.id })
+                        .eq("email", data.customer_email.trim());
+                    }
+                  } else {
+                    // Usuário não existe, criar com lock para evitar duplicação
+                    console.log("User not found in users table, creating now");
+
+                    // Usar uma transação para garantir atomicidade
+                    const { data: insertData, error: insertError } =
+                      await supabaseAdmin
+                        .from("users")
+                        .insert({
+                          id: userData.user.id,
+                          email: data.customer_email.trim(),
+                          name: storedFormData.name || "New User",
+                          phone: storedFormData.phone || "",
+                          credits: 37000,
+                        })
+                        .select()
+                        .single();
+
+                    if (insertError) {
+                      if (insertError.code === "23505") {
+                        // Código de erro para violação de chave única
+                        console.log(
+                          "User was created by another process, skipping",
+                        );
+                      } else {
+                        console.error(
+                          "Error creating user in users table:",
+                          insertError,
+                        );
+                      }
+                    } else {
+                      console.log(
+                        "User successfully created in users table:",
+                        insertData,
+                      );
+                    }
                   }
-                } catch (insertError) {
-                  console.error("Failed to create user record:", insertError);
-                  // Continuar mesmo com erro na criação do registro de usuário
-                  // O usuário ainda pode fazer login com a conta criada no Auth
+                } catch (error) {
+                  console.error(
+                    "Failed to check/create user in users table:",
+                    error,
+                  );
+                  // Continue mesmo com erro, pois o usuário já foi criado no Auth
                 }
               }
             } catch (error) {
