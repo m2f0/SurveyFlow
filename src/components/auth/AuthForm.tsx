@@ -215,19 +215,15 @@ export default function AuthForm() {
                     // Usuário não existe, criar com lock para evitar duplicação
                     console.log("User not found in users table, creating now");
 
-                    // Usar uma transação para garantir atomicidade
+                    // Usar a função create_new_user para garantir integridade
                     const { data: insertData, error: insertError } =
-                      await supabaseAdmin
-                        .from("users")
-                        .insert({
-                          id: userData.user.id,
-                          email: data.customer_email.trim(),
-                          name: storedFormData.name || "New User",
-                          phone: storedFormData.phone || "",
-                          credits: 37000,
-                        })
-                        .select()
-                        .single();
+                      await supabaseAdmin.rpc("create_new_user", {
+                        user_id: userData.user.id,
+                        user_email: data.customer_email.trim(),
+                        user_name: storedFormData.name || "New User",
+                        user_phone: storedFormData.phone || "",
+                        initial_credits: 37000,
+                      });
 
                     if (insertError) {
                       if (insertError.code === "23505") {
