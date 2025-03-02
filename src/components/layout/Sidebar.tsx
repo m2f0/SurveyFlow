@@ -165,16 +165,25 @@ const Sidebar = ({
                 console.log("Success URL:", successUrl);
                 console.log("Cancel URL:", cancelUrl);
 
-                // Call our create-checkout function
+                // Get user email
+                const { data: userData } = await supabase.auth.getUser();
+                const userEmail = userData?.user?.email;
+
+                if (!userEmail) {
+                  throw new Error("User email not found");
+                }
+
+                // Call backend API to create credits purchase
                 const response = await fetch(
-                  "https://slridxiczocmupyjgaek.supabase.co/functions/v1/create-checkout-session",
+                  "https://surveyflowai-162119fdccd1.herokuapp.com/stripe/create-credits-purchase",
                   {
                     method: "POST",
                     headers: {
                       "Content-Type": "application/json",
-                      Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
                     },
                     body: JSON.stringify({
+                      customer_email: userEmail,
+                      quantity: 1, // Default quantity
                       success_url: successUrl,
                       cancel_url: cancelUrl,
                     }),

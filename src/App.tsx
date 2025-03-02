@@ -1,8 +1,9 @@
 import React, { Suspense } from "react";
-import { useRoutes, Navigate } from "react-router-dom";
+import { useRoutes, Navigate, Routes, Route } from "react-router-dom";
 import Home from "./components/home";
 import AuthForm from "./components/auth/AuthForm";
-import routes from "tempo-routes";
+import tempoRoutes from "tempo-routes";
+import appRoutes from "./routes";
 import { useAuth } from "./lib/hooks/useAuth";
 import { increaseUserCredits } from "./lib/supabase/users";
 import { useToast } from "@/components/ui/use-toast";
@@ -12,8 +13,9 @@ import { AnimatedBackground } from "@/components/layout/AnimatedBackground";
 function App() {
   const { toast } = useToast();
   const { user, loading, initialized } = useAuth();
-  const tempoRoutes =
-    import.meta.env.VITE_TEMPO === "true" ? useRoutes(routes) : null;
+  // Use the routes
+  const tempo =
+    import.meta.env.VITE_TEMPO === "true" ? useRoutes(tempoRoutes) : null;
 
   // Handle payment success and force campaigns as the initial tab
   React.useEffect(() => {
@@ -22,24 +24,48 @@ function App() {
 
       // Handle payment success
       if (params.get("payment") === "success") {
-        // Increase credits
-        const increaseCredits = async () => {
+        // Verify payment with backend and update credits
+        const verifyPayment = async () => {
           try {
-            await increaseUserCredits(user.id);
+            // Get user email
+            const userEmail = user.email;
+
+            // Call backend to verify payment and update credits
+            const response = await fetch(
+              "https://surveyflowai-162119fdccd1.herokuapp.com/stripe/verify-credits-purchase",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  user_id: user.id,
+                  email: userEmail,
+                }),
+              },
+            );
+
+            const data = await response.json();
+
+            if (!response.ok)
+              throw new Error(data.error || "Verification failed");
+
+            // Update local credits display
             toast({
               title: "Credits Added",
-              description: "14,500 credits have been added to your account!",
+              description: `${data.credits_added || 14500} credits have been added to your account!`,
             });
           } catch (error: any) {
-            console.error("Error increasing credits:", error);
+            console.error("Error verifying payment:", error);
             toast({
               variant: "destructive",
               title: "Error",
-              description: error.message || "Failed to add credits",
+              description:
+                error.message || "Failed to verify payment and add credits",
             });
           }
         };
-        increaseCredits();
+        verifyPayment();
 
         // Remove payment parameter and set tab
         window.history.replaceState({}, "", "?tab=profile");
@@ -93,8 +119,10 @@ function App() {
         <div className="relative overflow-hidden">
           <AnimatedBackground />
           <div className="relative z-10">
-            <Home />
-            {tempoRoutes}
+            <Routes>
+              <Route path="/*" element={<Home />} />
+            </Routes>
+            {tempo}
           </div>
         </div>
       </Suspense>

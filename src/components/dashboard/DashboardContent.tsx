@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Campaign } from "@/lib/supabase/campaigns";
 import CSVUploader from "../upload/CSVUploader";
@@ -14,6 +14,13 @@ interface CSVData {
   [key: string]: string;
 }
 
+interface FileInfo {
+  name: string;
+  size: number;
+  date: string;
+  recordCount: number;
+}
+
 interface DashboardContentProps {
   activeTab?: string;
   onTabChange?: (value: string) => void;
@@ -24,6 +31,9 @@ const DashboardContent = ({
   onTabChange = () => {},
 }: DashboardContentProps) => {
   const [responses, setResponses] = useState<CSVData[]>([]);
+  const [uploadedFileInfo, setUploadedFileInfo] = useState<FileInfo | null>(
+    null,
+  );
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(
     null,
   );
@@ -43,8 +53,10 @@ const DashboardContent = ({
     },
   });
 
-  const handleCSVData = (data: CSVData[]) => {
+  const handleCSVData = (data: CSVData[], fileInfo: FileInfo) => {
     setResponses(data);
+    setUploadedFileInfo(fileInfo);
+
     // Update analytics with the new data
     setAnalyticsData({
       responseData: [
@@ -61,7 +73,7 @@ const DashboardContent = ({
         clicked: Math.round(data.length * 0.45),
       },
     });
-    onTabChange("responses");
+    // Removed automatic tab change to responses
   };
 
   return (
@@ -104,7 +116,10 @@ const DashboardContent = ({
 
           <div className="mt-6">
             <TabsContent value="upload" className="m-0">
-              <CSVUploader onDataParsed={handleCSVData} />
+              <CSVUploader
+                onDataParsed={handleCSVData}
+                initialFileInfo={uploadedFileInfo}
+              />
             </TabsContent>
 
             <TabsContent value="responses" className="m-0">

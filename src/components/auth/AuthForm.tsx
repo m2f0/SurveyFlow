@@ -1,11 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/lib/supabase";
-import { Loader2 } from "lucide-react";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { Loader2, AlertCircle, CheckCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 type AuthMode = "signin" | "signup";
 
@@ -18,12 +20,18 @@ export default function AuthForm() {
     name: "",
     phone: "",
   });
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [sessionCheckInProgress, setSessionCheckInProgress] = useState(false);
 
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
+    setSuccess(null);
 
     try {
       if (mode === "signin") {
@@ -32,58 +40,59 @@ export default function AuthForm() {
           password: formData.password,
         });
         if (error) throw error;
-      } else if (mode === "signup") {
-        // Verify stripe session first
-        const { data: sessionData, error: sessionError } = await supabase
-          .from("stripe_sessions")
-          .select("*")
-          .eq("status", "verified")
-          .eq("email", formData.email)
-          .single();
 
-        if (sessionError || !sessionData) {
-          throw new Error(
-            "Please complete payment before registration. If you've already paid, please wait a few moments for verification.",
-          );
+        setSuccess("Login successful! Redirecting to dashboard...");
+        navigate("/dashboard");
+      } else if (mode === "signup") {
+        // Get the current URL of your application
+        const currentUrl = window.location.origin;
+
+        // Create the success and cancel URLs
+        const successUrl = `${currentUrl}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
+        const cancelUrl = `${currentUrl}/?checkout=canceled`;
+
+        // Call backend API to create subscription
+        const response = await fetch(
+          "https://surveyflowai-162119fdccd1.herokuapp.com/stripe/create-subscription",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              customer_email: formData.email,
+              success_url: successUrl,
+              cancel_url: cancelUrl,
+            }),
+          },
+        );
+
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to create subscription");
         }
 
-        // Proceed with registration
-        const { data, error } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-          options: {
-            data: {
-              name: formData.name,
-              phone: formData.phone,
-            },
-          },
-        });
-        if (error) throw error;
+        const data = await response.json();
 
-        // Update session status to used
-        await supabase
-          .from("stripe_sessions")
-          .update({ status: "used" })
-          .eq("id", sessionData.id);
+        if (!data.url) throw new Error("No checkout URL returned");
 
-        // Clear form
-        setFormData({
-          email: "",
-          password: "",
-          name: "",
-          phone: "",
-        });
+        // Store form data in session storage for later use
+        sessionStorage.setItem(
+          "signupFormData",
+          JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+            name: formData.name,
+            phone: formData.phone,
+          }),
+        );
 
-        // Switch to sign in mode
-        setMode("signin");
-
-        // Show success message
-        toast({
-          title: "Account created successfully!",
-          description: "You can now sign in with your credentials.",
-        });
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+        return;
       }
     } catch (error: any) {
+      setError(error.message);
       toast({
         variant: "destructive",
         title: "Error",
@@ -94,108 +103,207 @@ export default function AuthForm() {
     }
   };
 
-  const handleSignUpClick = async () => {
-    try {
-      setLoading(true);
-      // Get the current URL of your application
-      const currentUrl = "https://inspiring-murdock8-q55sp.dev-2.tempolabs.ai";
-      console.log("Current URL:", currentUrl);
-
-      // Create the success and cancel URLs
-      const successUrl = `${currentUrl}?checkout=success&session_id={CHECKOUT_SESSION_ID}`;
-      const cancelUrl = `${currentUrl}?checkout=canceled`;
-      console.log("Success URL:", successUrl);
-      console.log("Cancel URL:", cancelUrl);
-
-      // Call our create-checkout function
-      const response = await fetch(
-        "https://slridxiczocmupyjgaek.supabase.co/functions/v1/create-checkout-session",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-          }),
-        },
-      );
-
-      const data = await response.json();
-      console.log("Response:", data);
-
-      if (data.error) throw new Error(data.error);
-      if (!data.url) throw new Error("No checkout URL returned");
-
-      // Redirect to Stripe checkout
-      window.location.href = data.url;
-    } catch (error: any) {
-      console.error("Error creating checkout session:", error);
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: error.message || "Failed to create checkout session",
-      });
-    } finally {
-      setLoading(false);
-    }
+  const handleSignUpClick = () => {
+    setMode("signup");
   };
 
   // Check for success or cancel parameters in URL
-  React.useEffect(() => {
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    const checkoutStatus = params.get("checkout");
     const sessionId = params.get("session_id");
-    console.log("URL Params:", Object.fromEntries(params.entries()));
-    console.log("Session ID:", sessionId);
 
-    if (params.get("checkout") === "success" && sessionId) {
-      // Check if session exists and is verified
+    // Clear URL parameters without refreshing the page
+    const cleanUrl = () => {
+      const url = new URL(window.location.href);
+      url.search = "";
+      window.history.replaceState({}, document.title, url.toString());
+    };
+
+    if (checkoutStatus === "success" && sessionId) {
+      setSessionCheckInProgress(true);
+      setLoading(true);
+
+      // Check if session exists and is verified with backend
       const checkSession = async () => {
         try {
-          console.log("Checking session:", sessionId);
-          const { data: sessionData, error: sessionError } = await supabase
-            .from("stripe_sessions")
-            .select("*")
-            .eq("session_id", sessionId)
-            .single();
+          const response = await fetch(
+            `https://surveyflowai-162119fdccd1.herokuapp.com/stripe/verify-session?session_id=${sessionId}`,
+          );
 
-          console.log("Session data:", sessionData);
-          console.log("Session error:", sessionError);
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || "Verification failed");
+          }
 
-          if (sessionError) throw sessionError;
+          const data = await response.json();
 
-          if (sessionData?.status === "verified") {
-            setMode("signup");
-            toast({
-              title: "Payment successful!",
-              description: "Please complete your registration.",
-            });
+          if (data.verified) {
+            // Get stored form data
+            const storedFormData = JSON.parse(
+              sessionStorage.getItem("signupFormData") || "{}",
+            );
+
+            // Generate a secure password if none provided
+            const password =
+              storedFormData.password ||
+              Math.random().toString(36).slice(-10) +
+                Math.random().toString(36).toUpperCase().slice(-2) +
+                "!2";
+
+            // Create user in Supabase
+            try {
+              // Validar o email antes de tentar criar o usuário
+              const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+              if (!emailRegex.test(data.customer_email)) {
+                throw new Error(`Email inválido: ${data.customer_email}`);
+              }
+
+              console.log(
+                "Attempting to sign up with email:",
+                data.customer_email,
+              );
+
+              // First, sign up the user with Supabase Auth
+              const { data: userData, error: signupError } =
+                await supabase.auth.signUp({
+                  email: data.customer_email.trim(),
+                  password: password,
+                  options: {
+                    data: {
+                      name: storedFormData.name || "New User",
+                      phone: storedFormData.phone || "",
+                    },
+                  },
+                });
+
+              if (signupError) throw signupError;
+
+              console.log("User created in Auth:", userData);
+
+              // Wait a moment to ensure Auth user is fully created
+              await new Promise((resolve) => setTimeout(resolve, 1000));
+
+              // Create entry in users table
+              if (userData?.user) {
+                try {
+                  // Usar o cliente admin com service role para inserir o usuário
+                  console.log("Attempting to create user with admin client");
+                  const { error: insertError } = await supabaseAdmin
+                    .from("users")
+                    .insert([
+                      {
+                        id: userData.user.id,
+                        email: data.customer_email.trim(),
+                        name: storedFormData.name || "New User",
+                        phone: storedFormData.phone || "",
+                        credits: 37000, // Initial credits
+                      },
+                    ]);
+
+                  if (insertError) {
+                    console.error("Insert error:", insertError);
+
+                    // Se falhar, tentar usar a função RPC
+                    const { error: rpcError } = await supabase.rpc(
+                      "create_new_user",
+                      {
+                        user_id: userData.user.id,
+                        user_email: data.customer_email.trim(),
+                        user_name: storedFormData.name || "New User",
+                        user_phone: storedFormData.phone || "",
+                        initial_credits: 37000,
+                      },
+                    );
+
+                    if (rpcError) {
+                      console.error("RPC error:", rpcError);
+                      throw rpcError;
+                    }
+
+                    console.log("User created in users table via RPC");
+                  } else {
+                    console.log(
+                      "User created in users table via direct insert",
+                    );
+                  }
+                } catch (insertError) {
+                  console.error("Failed to create user record:", insertError);
+                  // Continuar mesmo com erro na criação do registro de usuário
+                  // O usuário ainda pode fazer login com a conta criada no Auth
+                }
+              }
+            } catch (error) {
+              console.error("Error creating user:", error);
+              setError(
+                "Account created but profile setup failed. Please contact support.",
+              );
+              // Continue with the flow even if user creation fails
+              // The user can sign up manually later
+            }
+
+            // Notify backend that user has completed registration
+            const completeResponse = await fetch(
+              "https://surveyflowai-162119fdccd1.herokuapp.com/stripe/complete-registration",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  email: data.customer_email,
+                }),
+              },
+            );
+
+            if (!completeResponse.ok) {
+              const errorData = await completeResponse.json();
+              throw new Error(
+                errorData.error || "Failed to complete registration",
+              );
+            }
+
+            // Clear stored form data
+            sessionStorage.removeItem("signupFormData");
+
+            // Redirect to login page
+            setMode("signin");
+            setSuccess(
+              "Payment successful! Please sign in with your email and password.",
+            );
+            cleanUrl();
           } else {
             throw new Error("Payment verification pending");
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Error checking session:", error);
+          setError(
+            error.message || "There was an error verifying your payment",
+          );
           toast({
             variant: "destructive",
             title: "Error",
             description:
-              "There was an error verifying your payment. Please try again in a few moments.",
+              error.message || "There was an error verifying your payment",
           });
+        } finally {
+          setLoading(false);
+          setSessionCheckInProgress(false);
         }
       };
 
       checkSession();
-    } else if (params.get("checkout") === "canceled") {
+    } else if (checkoutStatus === "canceled") {
       setMode("signin");
+      setError("Payment was canceled. Please try again when you're ready.");
       toast({
         variant: "destructive",
         title: "Payment canceled",
         description: "Your payment was not completed.",
       });
+      cleanUrl();
     }
-  }, [toast]);
+  }, [toast, navigate]);
 
   return (
     <Card className="w-full max-w-md p-6 space-y-6 bg-card relative z-10">
@@ -215,82 +323,117 @@ export default function AuthForm() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {mode === "signup" && (
-          <>
-            <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                placeholder="John Doe"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
-              <Input
-                id="phone"
-                type="tel"
-                placeholder="+1234567890"
-                value={formData.phone}
-                onChange={(e) =>
-                  setFormData({ ...formData, phone: e.target.value })
-                }
-              />
-            </div>
-          </>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="john@example.com"
-            value={formData.email}
-            onChange={(e) =>
-              setFormData({ ...formData, email: e.target.value })
-            }
-            required
-          />
+      {/* Error message */}
+      {error && (
+        <div className="bg-destructive/10 p-3 rounded-md flex items-start space-x-2">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <p className="text-sm text-destructive">{error}</p>
         </div>
+      )}
 
-        <div className="space-y-2">
-          <Label htmlFor="password">Password</Label>
-          <Input
-            id="password"
-            type="password"
-            placeholder="••••••••"
-            value={formData.password}
-            onChange={(e) =>
-              setFormData({ ...formData, password: e.target.value })
-            }
-            required
-          />
+      {/* Success message */}
+      {success && (
+        <div className="bg-green-100 dark:bg-green-900/20 p-3 rounded-md flex items-start space-x-2">
+          <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500 shrink-0 mt-0.5" />
+          <p className="text-sm text-green-600 dark:text-green-500">
+            {success}
+          </p>
         </div>
+      )}
 
-        <Button className="w-full" type="submit" disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          {mode === "signin" ? "Sign In" : "Sign Up"}
-        </Button>
-      </form>
+      {/* Loading indicator for session check */}
+      {sessionCheckInProgress ? (
+        <div className="py-8 flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-center text-muted-foreground">
+            Verifying your payment and creating your account...
+          </p>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {mode === "signup" && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  placeholder="John Doe"
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                  required
+                  disabled={loading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  type="tel"
+                  placeholder="+1234567890"
+                  value={formData.phone}
+                  onChange={(e) =>
+                    setFormData({ ...formData, phone: e.target.value })
+                  }
+                  disabled={loading}
+                />
+              </div>
+            </>
+          )}
 
-      <div className="text-center">
-        <Button
-          variant="link"
-          onClick={
-            mode === "signin" ? handleSignUpClick : () => setMode("signin")
-          }
-        >
-          {mode === "signin"
-            ? "Don't have an account? Sign up"
-            : "Already have an account? Sign in"}
-        </Button>
-      </div>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="john@example.com"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="••••••••"
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <Button className="w-full" type="submit" disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {mode === "signin" ? "Sign In" : "Sign Up"}
+          </Button>
+        </form>
+      )}
+
+      {!sessionCheckInProgress && (
+        <div className="text-center">
+          <Button
+            variant="link"
+            onClick={
+              mode === "signin" ? handleSignUpClick : () => setMode("signin")
+            }
+            disabled={loading}
+          >
+            {mode === "signin"
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
+          </Button>
+        </div>
+      )}
     </Card>
   );
 }
